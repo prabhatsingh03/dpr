@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Projects - DPR Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-blue-900 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <img src="https://simonindia.com/assets/images/logo.png" alt="SIMON India Logo" class="h-8">
+                <h1 class="text-xl font-bold">Manage Projects</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <a href="/admin" class="bg-blue-700 px-3 py-2 rounded hover:bg-blue-600 transition">Dashboard</a>
+                <a href="/" class="bg-blue-700 px-3 py-2 rounded hover:bg-blue-600 transition">View Form</a>
+                <a href="/admin/logout" class="bg-red-600 px-3 py-2 rounded hover:bg-red-500 transition">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Project Management</h2>
+            <button id="add-project-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">
+                Add New Project
+            </button>
+        </div>
+
+        <div id="message-area" class="mb-4"></div>
+
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target Completion</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="projects-table-body">
+                        {% for project in projects %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ project.code }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ project.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ project.manager }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ project.client }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ project.target_completion or 'Not set' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick="editProject({{ project.id }}, '{{ project.code }}', '{{ project.name }}', '{{ project.manager }}', '{{ project.project_manager_client }}', '{{ project.client }}', '{{ project.contractor }}', '{{ project.report_id_fragment }}', '{{ project.target_completion }}')" 
+                                        class="text-indigo-600 hover:text-indigo-900 mr-4">Edit</button>
+                                <button onclick="deleteProject({{ project.id }})" 
+                                        class="text-red-600 hover:text-red-900">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit Project -->
+    <div id="project-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-title" class="text-lg font-semibold text-gray-900">Add New Project</h3>
+                <button id="close-modal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="project-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" id="project-id" name="project-id">
+                
+                <div>
+                    <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Project Code</label>
+                    <input type="text" id="code" name="code" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                    <input type="text" id="name" name="name" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label for="manager" class="block text-sm font-medium text-gray-700 mb-1">Project Manager</label>
+                    <input type="text" id="manager" name="manager" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label for="project-manager-client" class="block text-sm font-medium text-gray-700 mb-1">Project Manager (Client)</label>
+                    <input type="text" id="project-manager-client" name="project-manager-client" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label for="client" class="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                    <input type="text" id="client" name="client" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label for="contractor" class="block text-sm font-medium text-gray-700 mb-1">Contractor</label>
+                    <input type="text" id="contractor" name="contractor" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label for="report-id-fragment" class="block text-sm font-medium text-gray-700 mb-1">Report ID Fragment</label>
+                    <input type="text" id="report-id-fragment" name="report-id-fragment" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label for="target-completion" class="block text-sm font-medium text-gray-700 mb-1">Target Completion</label>
+                    <input type="date" id="target-completion" name="target-completion" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div class="md:col-span-2 flex justify-end space-x-4 mt-4">
+                    <button type="button" id="cancel-btn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Save Project
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('project-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const projectForm = document.getElementById('project-form');
+        const messageArea = document.getElementById('message-area');
+        let isEditing = false;
+
+        // Show message
+        function showMessage(message, type = 'success') {
+            const bgColor = type === 'success' ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300';
+            messageArea.innerHTML = `<div class="p-3 rounded-md border ${bgColor}">${message}</div>`;
+            setTimeout(() => {
+                messageArea.innerHTML = '';
+            }, 5000);
+        }
+
+        // Show modal
+        function showModal() {
+            modal.classList.remove('hidden');
+        }
+
+        // Hide modal
+        function hideModal() {
+            modal.classList.add('hidden');
+            projectForm.reset();
+            isEditing = false;
+            modalTitle.textContent = 'Add New Project';
+        }
+
+        // Add project
+        document.getElementById('add-project-btn').addEventListener('click', () => {
+            isEditing = false;
+            modalTitle.textContent = 'Add New Project';
+            showModal();
+        });
+
+        // Edit project
+        function editProject(id, code, name, manager, projectManagerClient, client, contractor, reportIdFragment, targetCompletion) {
+            isEditing = true;
+            modalTitle.textContent = 'Edit Project';
+            
+            document.getElementById('project-id').value = id;
+            document.getElementById('code').value = code;
+            document.getElementById('name').value = name;
+            document.getElementById('manager').value = manager;
+            document.getElementById('project-manager-client').value = projectManagerClient;
+            document.getElementById('client').value = client;
+            document.getElementById('contractor').value = contractor;
+            document.getElementById('report-id-fragment').value = reportIdFragment;
+            document.getElementById('target-completion').value = targetCompletion;
+            
+            showModal();
+        }
+
+        // Delete project
+        async function deleteProject(id) {
+            if (!confirm('Are you sure you want to delete this project?')) return;
+            
+            try {
+                const response = await fetch(`/admin/projects/delete/${id}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('Error deleting project', 'error');
+            }
+        }
+
+        // Form submission
+        projectForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(projectForm);
+            const data = {
+                code: formData.get('code'),
+                name: formData.get('name'),
+                manager: formData.get('manager'),
+                projectManagerClient: formData.get('project-manager-client'),
+                client: formData.get('client'),
+                contractor: formData.get('contractor'),
+                reportIdFragment: formData.get('report-id-fragment'),
+                targetCompletion: formData.get('target-completion')
+            };
+            
+            try {
+                const url = isEditing 
+                    ? `/admin/projects/update/${formData.get('project-id')}`
+                    : '/admin/projects/add';
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    hideModal();
+                    showMessage(result.message);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('Error saving project', 'error');
+            }
+        });
+
+        // Close modal events
+        document.getElementById('close-modal').addEventListener('click', hideModal);
+        document.getElementById('cancel-btn').addEventListener('click', hideModal);
+        
+        // Close modal on outside click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) hideModal();
+        });
+    </script>
+</body>
+</html>

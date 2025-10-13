@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Report PDF</title>
+    <style>
+        body { font-family: Arial, sans-serif; color:#1f2937; }
+        .report { border:1px solid #e5e7eb; border-radius:8px; padding:16px; margin-bottom:20px; }
+        .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; border-bottom:2px solid #dbeafe; padding-bottom:8px; }
+        .title { font-size:20px; font-weight:700; color:#1e3a8a; margin:0 0 6px; }
+        .meta { font-size:12px; color:#4b5563; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { border:1px solid #e5e7eb; padding:6px 8px; font-size:12px; }
+        th { background:#eff6ff; color:#111827; text-align:left; }
+        .section { background:#f3f4f6; font-weight:700; padding:6px 8px; border:1px solid #e5e7eb; }
+        .badge { display:inline-block; padding:2px 8px; border-radius:9999px; background:#dbeafe; color:#1e40af; font-size:11px; }
+        .block-title { font-size:14px; font-weight:700; margin:12px 0 6px; }
+        .small { font-size:11px; color:#374151; }
+    </style>
+</head>
+<body>
+    {% for r in reports %}
+    <div class="report">
+        <div class="header">
+            <div>
+                <div class="title">Report {{ r.report_number }}</div>
+                <div class="meta"><span class="badge">{{ r.project_code }}</span> &nbsp; {{ r.project_name }}</div>
+                <div class="meta">Date: {{ r.report_date }}</div>
+            </div>
+            <div class="small"></div>
+        </div>
+
+        <div class="block-title">Project Details</div>
+        <table>
+            <tr>
+                <th>Project Manager (Contractor)</th>
+                <td>{{ r.data.projectManagerContractor or r.project_manager_contractor or '-' }}</td>
+                <th>Project Manager (Client)</th>
+                <td>{{ r.data.projectManagerClient or r.project_manager_client or '-' }}</td>
+            </tr>
+            <tr>
+                <th>Target Completion</th>
+                <td>{{ r.data.targetCompletion or r.target_completion or '-' }}</td>
+                <th>Client</th>
+                <td>{{ r.data.client or r.project_client or '-' }}</td>
+            </tr>
+            <tr>
+                <th>Contractor</th>
+                <td>{{ r.data.contractor or r.project_contractor or '-' }}</td>
+                <th>Subcontractor Deployed</th>
+                <td>{{ r.data.subcontractorDeployed or '-' }}</td>
+            </tr>
+            <tr>
+                <th>Weather</th>
+                <td colspan="3">
+                    {% if r.data.weather and (r.data.weather.max or r.data.weather.min) %}
+                        Max {{ r.data.weather.max or '?' }}°C / Min {{ r.data.weather.min or '?' }}°C
+                    {% else %}-{% endif %}
+                </td>
+            </tr>
+        </table>
+
+        {% set act_list = r.data.activities or [] %}
+        {% if act_list|length > 0 %}
+        <div class="block-title">Construction Work Progress</div>
+        {% set grouped = {} %}
+        {% for a in act_list %}
+            {% set sec = a.sectionName or 'General' %}
+            {% if grouped.update({sec: (grouped.get(sec, []) + [a])}) %}{% endif %}
+        {% endfor %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Activity</th>
+                    <th>UOM</th>
+                    <th style="text-align:right;">Total Qty</th>
+                    <th style="text-align:right;">Planned Today</th>
+                    <th style="text-align:right;">Achieved Today</th>
+                    <th style="text-align:right;">Planned Cumulative</th>
+                    <th style="text-align:right;">Achieved Cumulative</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sec_name, items in grouped.items() %}
+                <tr><td class="section" colspan="7">{{ sec_name }}</td></tr>
+                {% for a in items %}
+                <tr>
+                    <td>{{ a.description }}</td>
+                    <td>{{ a.unit or '' }}</td>
+                    <td style="text-align:right;">{{ a.total_qty or '' }}</td>
+                    <td style="text-align:right;">{{ a.planned_today }}</td>
+                    <td style="text-align:right;">{{ a.achieved_today }}</td>
+                    <td style="text-align:right;">{{ a.planned_cumulative }}</td>
+                    <td style="text-align:right;">{{ a.achieved_cumulative }}</td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% set mp_list = r.data.manpower or [] %}
+        {% if mp_list|length > 0 %}
+        <div class="block-title">Manpower Details</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Contractor</th>
+                    <th>Designation</th>
+                    <th>Department</th>
+                    <th style="text-align:right;">No. of Personnel</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in mp_list %}
+                <tr>
+                    <td>{{ m.contractor }}</td>
+                    <td>{{ m.designation }}</td>
+                    <td>{{ m.department }}</td>
+                    <td style="text-align:right;">{{ m.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="section">Totals</td>
+                    <td style="text-align:right;">{{ mp_list | map(attribute='count') | sum }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        {% endif %}
+
+        {% set eq_list = r.data.equipment or [] %}
+        {% if eq_list|length > 0 %}
+        <div class="block-title">Equipment Details</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Contractor</th>
+                    <th>Equipment</th>
+                    <th>Department</th>
+                    <th style="text-align:right;">No. of Units</th>
+                    <th style="text-align:right;">Effective Hours</th>
+                    <th style="text-align:right;">Idle Hours</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in eq_list %}
+                <tr>
+                    <td>{{ e.contractor }}</td>
+                    <td>{{ e.description }}</td>
+                    <td>{{ e.department }}</td>
+                    <td style="text-align:right;">{{ e.count }}</td>
+                    <td style="text-align:right;">{{ e.effective_hours or 0 }}</td>
+                    <td style="text-align:right;">{{ e.idle_hours or 0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="section">Totals</td>
+                    <td style="text-align:right;">{{ eq_list | map(attribute='count') | sum }}</td>
+                    <td style="text-align:right;">{{ eq_list | map(attribute='effective_hours') | sum }}</td>
+                    <td style="text-align:right;">{{ eq_list | map(attribute='idle_hours') | sum }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        {% endif %}
+
+        <div class="block-title">Signatories</div>
+        <table>
+            <tr>
+                <th>Prepared By</th>
+                <td>{{ r.data.preparedBy or r.prepared_by or '-' }}</td>
+                <th>Initiated By (Contractor)</th>
+                <td>{{ r.data.initiatedByContractor or '-' }}</td>
+            </tr>
+            <tr>
+                {% if r.data.checkedBy %}
+                <th>Checked By</th>
+                <td>{{ r.data.checkedBy }}</td>
+                {% endif %}
+                {% if r.data.approvedBy %}
+                <th>Approved By</th>
+                <td>{{ r.data.approvedBy }}</td>
+                {% endif %}
+                <th>Verified By</th>
+                <td>{{ r.data.verifiedBy or '-' }}</td>
+            </tr>
+        </table>
+    </div>
+    {% endfor %}
+</body>
+</html>
