@@ -182,6 +182,17 @@
             <h1 class="text-2xl sm:text-3xl font-bold text-blue-900 text-center sm:text-left">Daily Progress Report</h1>
             <div class="flex items-center gap-4 mt-4 sm:mt-0">
                 <div id="admin-nav" class="flex items-center gap-2">
+                    <div id="notif-wrapper" class="relative">
+                        <button id="notif-button" type="button" class="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none" aria-label="Notifications">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v2.586l-.707.707A1 1 0 004 13h12a1 1 0 00.707-1.707L16 10.586V8a6 6 0 00-6-6z" /><path d="M14 14a4 4 0 11-8 0h8z" /></svg>
+                            <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full px-1">0</span>
+                        </button>
+                        <div id="notif-dropdown" class="hidden absolute z-20 mt-2 w-80 max-h-96 overflow-auto right-auto left-0 bg-white border border-gray-200 rounded-md shadow-lg">
+                            <div class="px-4 py-2 border-b text-sm font-semibold text-gray-700">Last 48 hours</div>
+                            <ul id="notif-list" class="divide-y divide-gray-100 max-h-80 overflow-y-auto"></ul>
+                            <div class="px-4 py-2 text-xs text-gray-500">Notifications auto-expire after 48 hours</div>
+                        </div>
+                    </div>
                     <a href="/view-reports" class="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition text-sm">View Reports</a>
                     <a href="/admin/login" id="admin-login-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition text-sm">Admin Login</a>
                     <div id="admin-logged-in" class="hidden flex items-center gap-2">
@@ -433,6 +444,80 @@
                 </button>
             </div>
         </form>
+
+        <script>
+            (function () {
+                const btn = document.getElementById('notif-button');
+                const dd = document.getElementById('notif-dropdown');
+                const list = document.getElementById('notif-list');
+                const badge = document.getElementById('notif-badge');
+                if (!btn || !dd || !list || !badge) return;
+
+                function timeAgo(iso) {
+                    try {
+                        if (iso && iso.endsWith('Z')) iso = iso.slice(0, -1);
+                        const then = new Date(iso);
+                        const now = new Date();
+                        const diffMs = now - then;
+                        const minutes = Math.floor(diffMs / 60000);
+                        if (minutes < 1) return 'just now';
+                        if (minutes < 60) return minutes + 'm ago';
+                        const hours = Math.floor(minutes / 60);
+                        if (hours < 24) return hours + 'h ago';
+                        const days = Math.floor(hours / 24);
+                        return days + 'd ago';
+                    } catch (e) { return ''; }
+                }
+
+                async function loadNotifs() {
+                    try {
+                        const res = await fetch('/api/notifications?hours=48', { cache: 'no-store' });
+                        const data = await res.json();
+                        const items = (data && data.notifications) || [];
+                        list.innerHTML = '';
+                        if (!items.length) {
+                            const li = document.createElement('li');
+                            li.className = 'px-4 py-3 text-sm text-gray-500';
+                            li.textContent = 'No notifications';
+                            list.appendChild(li);
+                        } else {
+                            items.forEach(n => {
+                                const li = document.createElement('li');
+                                li.className = 'px-4 py-3 hover:bg-gray-50';
+                                const msg = document.createElement('div');
+                                msg.className = 'text-sm text-gray-800';
+                                msg.textContent = n.message || '';
+                                const meta = document.createElement('div');
+                                meta.className = 'text-xs text-gray-500 mt-1';
+                                meta.textContent = timeAgo(n.created_at);
+                                li.appendChild(msg);
+                                li.appendChild(meta);
+                                list.appendChild(li);
+                            });
+                        }
+                        if (items.length > 0) {
+                            badge.textContent = String(items.length);
+                            badge.classList.remove('hidden');
+                        } else {
+                            badge.classList.add('hidden');
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    dd.classList.toggle('hidden');
+                });
+                document.addEventListener('click', function () {
+                    dd.classList.add('hidden');
+                });
+
+                loadNotifs();
+                setInterval(loadNotifs, 60000); // refresh every minute
+            })();
+        </script>
     </div>
 
     <!-- Confirmation Modal -->
