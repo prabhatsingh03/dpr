@@ -36,11 +36,6 @@ python app.py
 
 The application will be available at `http://localhost:5000`
 
-## Default Admin Credentials
-
-- **Username**: `admin@simonindia.ai`
-- **Password**: `Simon@54321`
-
 **⚠️ Important**: Change the default password immediately after first login for security.
 
 ## Application Structure
@@ -144,3 +139,4 @@ To modify the application:
 ## License
 
 This project is for internal use by SIMON India Limited.
+
