@@ -3,7 +3,7 @@ import sqlite3
 import hashlib
 import os
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 app = Flask(__name__)
@@ -25,6 +25,60 @@ def init_db_if_not_exists():
 
 # Initialize database on startup
 init_db_if_not_exists()
+
+# Notifications storage (JSON file) and helpers
+NOTIFICATIONS_FILE = 'notifications.json'
+
+def _load_notifications():
+    try:
+        if os.path.exists(NOTIFICATIONS_FILE):
+            with open(NOTIFICATIONS_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data if isinstance(data, list) else []
+        return []
+    except Exception:
+        return []
+
+def _save_notifications(items):
+    try:
+        with open(NOTIFICATIONS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+def _prune_notifications(hours: int = 48):
+    items = _load_notifications()
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    def parse_dt(s):
+        try:
+            # stored as ISO with 'Z'
+            if s.endswith('Z'):
+                s = s[:-1]
+            return datetime.fromisoformat(s)
+        except Exception:
+            return None
+    filtered = []
+    for it in items:
+        created_at = parse_dt(it.get('created_at', ''))
+        if created_at and created_at >= cutoff:
+            filtered.append(it)
+    if len(filtered) != len(items):
+        _save_notifications(filtered)
+    return filtered
+
+def add_notification(message: str, payload: dict | None = None):
+    items = _prune_notifications(48)
+    notification = {
+        'id': int(datetime.utcnow().timestamp() * 1000),
+        'message': message,
+        'created_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+        'payload': payload or {}
+    }
+    items.append(notification)
+    # keep newest first for convenience
+    items.sort(key=lambda x: x.get('id', 0), reverse=True)
+    _save_notifications(items)
+    return notification
 
 @app.route('/')
 def index():
@@ -657,6 +711,18 @@ def public_view_reports():
         reports=parsed_reports,
         show_admin_links=False
     )
+
+@app.route('/api/notifications', methods=['GET'])
+def get_notifications():
+    """Get notifications within the last N hours (default 48). Also prunes expired items."""
+    try:
+        hours = int(request.args.get('hours', '48'))
+    except Exception:
+        hours = 48
+    items = _prune_notifications(hours)
+    # Sort newest first
+    items = sorted(items, key=lambda x: x.get('id', 0), reverse=True)
+    return jsonify({'notifications': items, 'count': len(items)})
 
 @app.route('/admin/projects')
 @admin_required
@@ -1411,6 +1477,19 @@ def submit_report():
         
         conn.commit()
         conn.close()
+
+        # Add notification for this submission (visible for 48 hours)
+        try:
+            msg = f"Report {data['reportNumber']} submitted for project {data['projectCode']} on {data['reportDate']}"
+            add_notification(msg, {
+                'reportNumber': data['reportNumber'],
+                'projectCode': data['projectCode'],
+                'reportDate': data['reportDate'],
+                'projectName': data.get('projectName', '')
+            })
+        except Exception:
+            # Do not block submission on notification failure
+            pass
         
         return jsonify({
             'success': True,
