@@ -797,6 +797,144 @@ def admin_staff():
     
     return render_template('admin_staff.html', staff=staff)
 
+# Manpower Designation Management Routes
+@app.route('/admin/manpower-designations')
+@admin_required
+def admin_manpower_designations():
+    """Admin manpower designations management"""
+    conn = get_db_connection()
+    designations = conn.execute('SELECT * FROM manpower_designations ORDER BY designation').fetchall()
+    conn.close()
+    
+    return render_template('admin_manpower_designations.html', designations=designations)
+
+@app.route('/admin/manpower-designations/add', methods=['POST'])
+@admin_required
+def add_manpower_designation():
+    """Add new manpower designation"""
+    data = request.get_json()
+    
+    if not data or 'designation' not in data or not data['designation'].strip():
+        return jsonify({'success': False, 'message': 'Designation name is required'})
+        
+    conn = get_db_connection()
+    try:
+        conn.execute('INSERT INTO manpower_designations (designation) VALUES (?)',
+                    (data['designation'].strip(),))
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Designation added successfully'})
+    except sqlite3.IntegrityError:
+        return jsonify({'success': False, 'message': 'Designation already exists'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+@app.route('/admin/manpower-designations/update/<int:id>', methods=['POST'])
+@admin_required
+def update_manpower_designation(id):
+    """Update existing manpower designation"""
+    data = request.get_json()
+    
+    if not data or 'designation' not in data or not data['designation'].strip():
+        return jsonify({'success': False, 'message': 'Designation name is required'})
+    
+    conn = get_db_connection()
+    try:
+        conn.execute('UPDATE manpower_designations SET designation=? WHERE id=?',
+                    (data['designation'].strip(), id))
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Designation updated successfully'})
+    except sqlite3.IntegrityError:
+        return jsonify({'success': False, 'message': 'Designation already exists'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+@app.route('/admin/manpower-designations/delete/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_manpower_designation(id):
+    """Delete manpower designation"""
+    conn = get_db_connection()
+    try:
+        conn.execute('DELETE FROM manpower_designations WHERE id = ?', (id,))
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Designation deleted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+# Equipment Description Management Routes
+@app.route('/admin/equipment-descriptions')
+@admin_required
+def admin_equipment_descriptions():
+    """Admin equipment descriptions management"""
+    conn = get_db_connection()
+    descriptions = conn.execute('SELECT * FROM equipment_descriptions ORDER BY description').fetchall()
+    conn.close()
+    
+    return render_template('admin_equipment_descriptions.html', descriptions=descriptions)
+
+@app.route('/admin/equipment-descriptions/add', methods=['POST'])
+@admin_required
+def add_equipment_description():
+    """Add new equipment description"""
+    data = request.get_json()
+    
+    if not data or 'description' not in data or not data['description'].strip():
+        return jsonify({'success': False, 'message': 'Description is required'})
+        
+    conn = get_db_connection()
+    try:
+        conn.execute('INSERT INTO equipment_descriptions (description) VALUES (?)',
+                    (data['description'].strip(),))
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Equipment description added successfully'})
+    except sqlite3.IntegrityError:
+        return jsonify({'success': False, 'message': 'Equipment description already exists'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+@app.route('/admin/equipment-descriptions/update/<int:id>', methods=['POST'])
+@admin_required
+def update_equipment_description(id):
+    """Update existing equipment description"""
+    data = request.get_json()
+    
+    if not data or 'description' not in data or not data['description'].strip():
+        return jsonify({'success': False, 'message': 'Description is required'})
+    
+    conn = get_db_connection()
+    try:
+        conn.execute('UPDATE equipment_descriptions SET description=? WHERE id=?',
+                    (data['description'].strip(), id))
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Equipment description updated successfully'})
+    except sqlite3.IntegrityError:
+        return jsonify({'success': False, 'message': 'Equipment description already exists'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
+@app.route('/admin/equipment-descriptions/delete/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_equipment_description(id):
+    """Delete equipment description"""
+    conn = get_db_connection()
+    try:
+        conn.execute('DELETE FROM equipment_descriptions WHERE id = ?', (id,))
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Equipment description deleted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    finally:
+        conn.close()
+
 @app.route('/admin/staff/add', methods=['POST'])
 @admin_required
 def add_staff():
