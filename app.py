@@ -1117,13 +1117,14 @@ def admin_project_activities():
     ''').fetchall()
     
     projects = conn.execute('SELECT code, name FROM projects ORDER BY code').fetchall()
-    sections_rows = conn.execute('SELECT project_code, section_id, section_name FROM project_sections ORDER BY project_code, section_name').fetchall()
+    sections_rows = conn.execute('SELECT id, project_code, section_id, section_name FROM project_sections ORDER BY project_code, section_name').fetchall()
     conn.close()
     
     # Convert Row objects to dictionaries for JSON serialization
     sections = []
     for section in sections_rows:
         sections.append({
+            'id': section['id'],  # Add ID for correct foreign key reference
             'project_code': section['project_code'],
             'section_id': section['section_id'],
             'section_name': section['section_name']
@@ -1147,17 +1148,23 @@ def add_project_activity():
     
     next_order = (max_order['max_order'] or 0) + 1
     
-    conn.execute('''
-        INSERT INTO project_activities (project_code, section_id, activity_description, area, unit, total_qty_planned, order_index)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        data['projectCode'], data['sectionId'], data['activityDescription'],
-        data['area'], data['unit'], data['totalQtyPlanned'], next_order
-    ))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({'success': True, 'message': 'Project activity added successfully'})
+    try:
+        conn.execute('''
+            INSERT INTO project_activities (project_code, section_id, activity_description, area, unit, total_qty_planned, order_index)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            data['projectCode'], data['sectionId'], data['activityDescription'],
+            data['area'], data['unit'], data['totalQtyPlanned'], next_order
+        ))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Project activity added successfully'})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'success': False, 'message': 'Activity already exists in this section'}), 409
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 @app.route('/admin/project-activities/update/<int:activity_id>', methods=['POST'])
 @admin_required
