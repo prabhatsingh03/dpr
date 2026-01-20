@@ -110,7 +110,7 @@
                 
                 projectSections.forEach(section => {
                     const option = document.createElement('option');
-                    option.value = section.section_id;
+                    option.value = section.id;
                     option.textContent = section.section_name;
                     sectionSelect.appendChild(option);
                 });
@@ -204,7 +204,7 @@
             setTimeout(() => {
                 const sectionSelect = document.getElementById('section-id');
                 for (let option of sectionSelect.options) {
-                    if (option.textContent === currentSectionName) {
+                    if (option.text === currentSectionName) {
                         option.selected = true;
                         break;
                     }
