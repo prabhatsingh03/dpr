@@ -1602,6 +1602,13 @@
                 // Initialize contractor multi-select component
                 const initializeContractorMultiSelect = () => {
                     const multiSelectContainer = document.getElementById('init-contractor-multi-select');
+
+                    // Prevent duplicate initialization
+                    if (!multiSelectContainer || multiSelectContainer.dataset.initialized === 'true') {
+                        return;
+                    }
+                    multiSelectContainer.dataset.initialized = 'true';
+
                     const dropdown = document.getElementById('init-contractor-dropdown');
                     const chipsContainer = document.getElementById('init-contractor-chips');
                     const placeholder = document.getElementById('init-contractor-placeholder');
@@ -1610,7 +1617,7 @@
                     let selectedContractors = [];
 
                     // Toggle dropdown on container click
-                    multiSelectContainer?.addEventListener('click', (e) => {
+                    multiSelectContainer.addEventListener('click', (e) => {
                         e.stopPropagation();
                         dropdown.classList.toggle('hidden');
                     });
