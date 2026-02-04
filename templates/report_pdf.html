@@ -1,23 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Report PDF</title>
     <style>
-        body { font-family: Arial, sans-serif; color:#1f2937; }
-        .report { border:1px solid #e5e7eb; border-radius:8px; padding:16px; margin-bottom:20px; }
-        .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; border-bottom:2px solid #dbeafe; padding-bottom:8px; }
-        .title { font-size:20px; font-weight:700; color:#1e3a8a; margin:0 0 6px; }
-        .meta { font-size:12px; color:#4b5563; }
-        table { width:100%; border-collapse:collapse; }
-        th, td { border:1px solid #e5e7eb; padding:6px 8px; font-size:12px; }
-        th { background:#eff6ff; color:#111827; text-align:left; }
-        .section { background:#f3f4f6; font-weight:700; padding:6px 8px; border:1px solid #e5e7eb; }
-        .badge { display:inline-block; padding:2px 8px; border-radius:9999px; background:#dbeafe; color:#1e40af; font-size:11px; }
-        .block-title { font-size:14px; font-weight:700; margin:12px 0 6px; }
-        .small { font-size:11px; color:#374151; }
+        body {
+            font-family: Arial, sans-serif;
+            color: #1f2937;
+        }
+
+        .report {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            border-bottom: 2px solid #dbeafe;
+            padding-bottom: 8px;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e3a8a;
+            margin: 0 0 6px;
+        }
+
+        .meta {
+            font-size: 12px;
+            color: #4b5563;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #e5e7eb;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+
+        th {
+            background: #eff6ff;
+            color: #111827;
+            text-align: left;
+        }
+
+        .section {
+            background: #f3f4f6;
+            font-weight: 700;
+            padding: 6px 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            background: #dbeafe;
+            color: #1e40af;
+            font-size: 11px;
+        }
+
+        .block-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 12px 0 6px;
+        }
+
+        .small {
+            font-size: 11px;
+            color: #374151;
+        }
     </style>
 </head>
+
 <body>
     {% for r in reports %}
     <div class="report">
@@ -27,7 +94,9 @@
                 <div class="meta"><span class="badge">{{ r.project_code }}</span> &nbsp; {{ r.project_name }}</div>
                 <div class="meta">Date: {{ r.report_date }}</div>
             </div>
-            <div class="small"></div>
+            <div class="small">
+                <img src="/static/logo.png" alt="Simon India Logo" style="height:40px;">
+            </div>
         </div>
 
         <div class="block-title">Project Details</div>
@@ -54,7 +123,7 @@
                 <th>Weather</th>
                 <td colspan="3">
                     {% if r.data.weather and (r.data.weather.max or r.data.weather.min) %}
-                        Max {{ r.data.weather.max or '?' }}°C / Min {{ r.data.weather.min or '?' }}°C
+                    Max {{ r.data.weather.max or '?' }}°C / Min {{ r.data.weather.min or '?' }}°C
                     {% else %}-{% endif %}
                 </td>
             </tr>
@@ -65,8 +134,8 @@
         <div class="block-title">Construction Work Progress</div>
         {% set grouped = {} %}
         {% for a in act_list %}
-            {% set sec = a.sectionName or 'General' %}
-            {% if grouped.update({sec: (grouped.get(sec, []) + [a])}) %}{% endif %}
+        {% set sec = a.sectionName or 'General' %}
+        {% if grouped.update({sec: (grouped.get(sec, []) + [a])}) %}{% endif %}
         {% endfor %}
         <table>
             <thead>
@@ -82,7 +151,9 @@
             </thead>
             <tbody>
                 {% for sec_name, items in grouped.items() %}
-                <tr><td class="section" colspan="7">{{ sec_name }}</td></tr>
+                <tr>
+                    <td class="section" colspan="7">{{ sec_name }}</td>
+                </tr>
                 {% for a in items %}
                 <tr>
                     <td>{{ a.description }}</td>
@@ -191,4 +262,5 @@
     </div>
     {% endfor %}
 </body>
+
 </html>
