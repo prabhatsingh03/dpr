@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,25 +8,78 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @media print {
-            .no-print { display: none !important; }
-            body { background: white; }
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+            }
         }
+
         /* Help html2pdf with page breaks */
-        .avoid-break { break-inside: avoid; page-break-inside: avoid; }
-        table { page-break-inside: auto; }
-        tr, td, th { page-break-inside: avoid; break-inside: avoid; }
-        .page-break { page-break-before: always; break-before: page; }
+        .avoid-break {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        table {
+            page-break-inside: auto;
+        }
+
+        tr,
+        td,
+        th {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .page-break {
+            page-break-before: always;
+            break-before: page;
+        }
+
         /* Compact adjustments applied to the cloned node for PDF only */
-        .pdf-compact table th, .pdf-compact table td { padding: 3px 5px !important; font-size: 11px !important; }
-        .pdf-compact h2 { font-size: 18px !important; }
-        .pdf-compact h3 { font-size: 13px !important; }
-        .pdf-compact .text-lg { font-size: 13px !important; }
-        .pdf-compact .text-base { font-size: 12px !important; }
-        .pdf-compact .text-sm { font-size: 11px !important; }
+        .pdf-compact table th,
+        .pdf-compact table td {
+            padding: 3px 5px !important;
+            font-size: 11px !important;
+        }
+
+        .pdf-compact h2 {
+            font-size: 18px !important;
+        }
+
+        .pdf-compact h3 {
+            font-size: 13px !important;
+        }
+
+        .pdf-compact .text-lg {
+            font-size: 13px !important;
+        }
+
+        .pdf-compact .text-base {
+            font-size: 12px !important;
+        }
+
+        .pdf-compact .text-sm {
+            font-size: 11px !important;
+        }
+
         /* Tighten common Tailwind paddings inside PDF only */
-        .pdf-compact .px-4 { padding-left: 6px !important; padding-right: 6px !important; }
-        .pdf-compact .py-3 { padding-top: 6px !important; padding-bottom: 6px !important; }
-        .pdf-compact .p-8  { padding: 16px !important; }
+        .pdf-compact .px-4 {
+            padding-left: 6px !important;
+            padding-right: 6px !important;
+        }
+
+        .pdf-compact .py-3 {
+            padding-top: 6px !important;
+            padding-bottom: 6px !important;
+        }
+
+        .pdf-compact .p-8 {
+            padding: 16px !important;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
@@ -66,7 +120,7 @@
             const projSel = document.getElementById('project');
             const dateSel = document.getElementById('report_date');
             const proj = projSel?.value || 'All';
-            const date = dateSel?.value || new Date().toISOString().slice(0,10);
+            const date = dateSel?.value || new Date().toISOString().slice(0, 10);
             // Fit to A4 width: choose orientation and scale to avoid clipping
             const A4W_PX_PORTRAIT = 794;  // ~ 210mm at 96dpi
             const A4W_PX_LANDSCAPE = 1123; // ~ 297mm at 96dpi
@@ -83,12 +137,12 @@
             clone.style.transform = `scale(${scaleToFit})`;
 
             const opt = {
-                margin:       [10, 10, 10, 10],
-                filename:     `DPR_${proj}_${date}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, scrollY: 0, windowWidth: contentWidth },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation },
-                pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', 'td', 'th', '.avoid-break'] }
+                margin: [10, 10, 10, 10],
+                filename: `DPR_${proj}_${date}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: contentWidth },
+                jsPDF: { unit: 'mm', format: 'a4', orientation },
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'td', 'th', '.avoid-break'] }
             };
             await html2pdf().from(clone).set(opt).save();
             document.body.removeChild(clone);
@@ -155,9 +209,9 @@
                 aoa.push(['Contractor', 'Equipment', 'Department', 'No. of Units', 'Effective Hours', 'Idle Hours']);
                 const eq = (d.equipment || []);
                 eq.forEach(e => aoa.push([e.contractor || '', e.description || '', e.department || '', e.count || 0, e.effective_hours || 0, e.idle_hours || 0]));
-                const eqUnits = eq.reduce((s,e)=> s + (Number(e.count)||0), 0);
-                const eqEff   = eq.reduce((s,e)=> s + (Number(e.effective_hours)||0), 0);
-                const eqIdle  = eq.reduce((s,e)=> s + (Number(e.idle_hours)||0), 0);
+                const eqUnits = eq.reduce((s, e) => s + (Number(e.count) || 0), 0);
+                const eqEff = eq.reduce((s, e) => s + (Number(e.effective_hours) || 0), 0);
+                const eqIdle = eq.reduce((s, e) => s + (Number(e.idle_hours) || 0), 0);
                 aoa.push(['Totals', '', '', eqUnits, eqEff, eqIdle]);
                 aoa.push([]);
 
@@ -189,7 +243,7 @@
 
                 // Signatories
                 aoa.push(['Signatories']);
-                aoa.push(['Prepared By', (d.preparedBy || r.prepared_by || '-') , 'Initiated By (Contractor)', (d.initiatedByContractor || '-')]);
+                aoa.push(['Prepared By', (d.preparedBy || r.prepared_by || '-'), 'Initiated By (Contractor)', (d.initiatedByContractor || '-')]);
                 if (d.checkedBy) aoa.push(['Checked By', d.checkedBy]);
                 if (d.approvedBy) aoa.push(['Approved By', d.approvedBy]);
                 aoa.push(['Verified By', d.verifiedBy || '-']);
@@ -201,9 +255,9 @@
                 ];
                 // Merge title rows across first 4 columns if present
                 ws['!merges'] = ws['!merges'] || [];
-                ws['!merges'].push({ s: { r:0, c:0 }, e: { r:0, c:3 } });
-                ws['!merges'].push({ s: { r:1, c:0 }, e: { r:1, c:3 } });
-                ws['!merges'].push({ s: { r:2, c:0 }, e: { r:2, c:3 } });
+                ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } });
+                ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 3 } });
+                ws['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 3 } });
 
                 // Sheet name per report
                 const safeName = (`Rep_${r.report_number || idx}`).toString().substring(0, 31);
@@ -213,7 +267,7 @@
             const projSel = document.getElementById('project');
             const dateSel = document.getElementById('report_date');
             const proj = projSel?.value || 'All';
-            const date = dateSel?.value || new Date().toISOString().slice(0,10);
+            const date = dateSel?.value || new Date().toISOString().slice(0, 10);
             XLSX.writeFile(wb, `DPR_View_${proj}_${date}.xlsx`);
         }
         function formatIST(ts) {
@@ -232,7 +286,8 @@
             });
         });
     </script>
-    </head>
+</head>
+
 <body class="bg-gray-100 min-h-screen">
     <script id="reports-json" type="application/json">{{ reports | tojson | safe }}</script>
     <nav class="bg-blue-900 text-white p-4">
@@ -258,23 +313,28 @@
                     <select id="project" class="w-full border rounded px-3 py-2">
                         <option value="">All Projects</option>
                         {% for p in projects %}
-                        <option value="{{ p.code }}" {% if selected_project == p.code %}selected{% endif %}>{{ p.code }} - {{ p.name }}</option>
+                        <option value="{{ p.code }}" {% if selected_project==p.code %}selected{% endif %}>{{ p.code }} -
+                            {{ p.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm text-gray-700 mb-1">Report Date</label>
-                    <input id="report_date" type="date" value="{{ selected_date }}" class="w-full border rounded px-3 py-2" />
+                    <input id="report_date" type="date" value="{{ selected_date }}"
+                        class="w-full border rounded px-3 py-2" />
                 </div>
                 <div class="flex items-end space-x-2">
-                    <button onclick="applyFilters()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500">Apply</button>
-                    <button onclick="downloadClientPDF()" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">Download PDF</button>
+                    <button onclick="applyFilters()"
+                        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500">Apply</button>
+                    <button onclick="downloadClientPDF()"
+                        class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">Download PDF</button>
                 </div>
             </div>
         </div>
 
         {% if reports|length == 0 %}
-            <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded">No reports found. Select filters and click Apply.</div>
+        <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded">No reports found. Select filters
+            and click Apply.</div>
         {% endif %}
 
         {% for r in reports %}
@@ -284,7 +344,8 @@
                 <div class="flex-1 min-w-0">
                     <h2 class="text-2xl font-bold text-blue-900 mb-2">Report {{ r.report_number }}</h2>
                     <div class="flex flex-wrap gap-4 mb-4">
-                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">{{ r.project_code }}</span>
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">{{
+                            r.project_code }}</span>
                         <span class="text-lg font-semibold text-gray-700">{{ r.project_name }}</span>
                     </div>
                     <p class="text-gray-600 mb-4"><span class="font-medium">Date:</span> {{ r.report_date }}</p>
@@ -294,40 +355,60 @@
                             <table class="min-w-full text-sm border border-gray-300 rounded-lg overflow-hidden">
                                 <tbody>
                                     <tr>
-                                        <td class="px-4 py-3 border-b border-r bg-blue-50 w-64 font-medium text-blue-900">Project Manager (Contractor)</td>
-                                        <td class="px-4 py-3 border-b border-r text-gray-800">{{ r.data.projectManagerContractor or r.project_manager_contractor or '-' }}</td>
-                                        <td class="px-4 py-3 border-b border-r bg-blue-50 w-64 font-medium text-blue-900">Project Manager (Client)</td>
-                                        <td class="px-4 py-3 border-b text-gray-800">{{ r.data.projectManagerClient or r.project_manager_client or '-' }}</td>
+                                        <td
+                                            class="px-4 py-3 border-b border-r bg-blue-50 w-64 font-medium text-blue-900">
+                                            Project Manager (Contractor)</td>
+                                        <td class="px-4 py-3 border-b border-r text-gray-800">{{
+                                            r.data.projectManagerContractor or r.project_manager_contractor or '-' }}
+                                        </td>
+                                        <td
+                                            class="px-4 py-3 border-b border-r bg-blue-50 w-64 font-medium text-blue-900">
+                                            Project Manager (Client)</td>
+                                        <td class="px-4 py-3 border-b text-gray-800">{{ r.data.projectManagerClient or
+                                            r.project_manager_client or '-' }}</td>
                                     </tr>
                                     <tr>
-                                        <td class="px-4 py-3 border-b border-r bg-blue-50 font-medium text-blue-900">Target Completion</td>
-                                        <td class="px-4 py-3 border-b border-r text-gray-800">{{ r.data.targetCompletion or r.target_completion or '-' }}</td>
-                                        <td class="px-4 py-3 border-b border-r bg-blue-50 font-medium text-blue-900">Client</td>
-                                        <td class="px-4 py-3 border-b text-gray-800">{{ r.data.client or r.project_client or '-' }}</td>
+                                        <td class="px-4 py-3 border-b border-r bg-blue-50 font-medium text-blue-900">
+                                            Target Completion</td>
+                                        <td class="px-4 py-3 border-b border-r text-gray-800">{{ r.data.targetCompletion
+                                            or r.target_completion or '-' }}</td>
+                                        <td class="px-4 py-3 border-b border-r bg-blue-50 font-medium text-blue-900">
+                                            Client</td>
+                                        <td class="px-4 py-3 border-b text-gray-800">{{ r.data.client or
+                                            r.project_client or '-' }}</td>
                                     </tr>
                                     <tr>
-                                        <td class="px-4 py-3 border-b border-r bg-blue-50 font-medium text-blue-900">Contractor</td>
-                                        <td class="px-4 py-3 border-b border-r text-gray-800">{{ r.data.contractor or r.project_contractor or '-' }}</td>
-                                        <td class="px-4 py-3 border-b border-r bg-blue-50 font-medium text-blue-900">Subcontractor Deployed</td>
-                                        <td class="px-4 py-3 border-b text-gray-800">{{ r.data.subcontractorDeployed or '-' }}</td>
+                                        <td class="px-4 py-3 border-b border-r bg-blue-50 font-medium text-blue-900">
+                                            Contractor</td>
+                                        <td class="px-4 py-3 border-b border-r text-gray-800">{{ r.data.contractor or
+                                            r.project_contractor or '-' }}</td>
+                                        <td class="px-4 py-3 border-b border-r bg-blue-50 font-medium text-blue-900">
+                                            Subcontractor Deployed</td>
+                                        <td class="px-4 py-3 border-b text-gray-800">{{ r.data.subcontractorDeployed or
+                                            '-' }}</td>
                                     </tr>
                                     <tr>
                                         <td class="px-4 py-3 bg-blue-50 font-medium text-blue-900 border-r">Weather</td>
                                         <td class="px-4 py-3 text-gray-800" colspan="3">
                                             {% if r.data.weather and (r.data.weather.max or r.data.weather.min) %}
-                                                <span class="inline-flex items-center gap-2">
-                                                    <span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">Max {{ r.data.weather.max or '?' }}°C</span>
-                                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Min {{ r.data.weather.min or '?' }}°C</span>
-                                                </span>
+                                            <span class="inline-flex items-center gap-2">
+                                                <span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">Max {{
+                                                    r.data.weather.max or '?' }}°C</span>
+                                                <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Min {{
+                                                    r.data.weather.min or '?' }}°C</span>
+                                            </span>
                                             {% else %}
-                                                -
+                                            -
                                             {% endif %}
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+                    </div>
                 </div>
+                <div class="flex-shrink-0">
+                    <img src="/static/logo.png" alt="Simon India Logo" class="h-12 object-contain">
                 </div>
                 <!-- Submitted date removed as requested -->
             </div>
@@ -340,12 +421,13 @@
                 </h3>
                 {% set act_list = r.data.activities or [] %}
                 {% if act_list|length == 0 %}
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500">No activities recorded</div>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500">No activities
+                    recorded</div>
                 {% else %}
                 {% set grouped = {} %}
                 {% for a in act_list %}
-                    {% set sec = a.sectionName or 'General' %}
-                    {% if grouped.update({sec: (grouped.get(sec, []) + [a])}) %}{% endif %}
+                {% set sec = a.sectionName or 'General' %}
+                {% if grouped.update({sec: (grouped.get(sec, []) + [a])}) %}{% endif %}
                 {% endfor %}
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm border border-gray-300 rounded-lg overflow-hidden">
@@ -375,10 +457,14 @@
                                 <td class="px-4 py-3 border-b border-gray-200">{{ a.description }}</td>
                                 <td class="px-4 py-3 border-b border-gray-200">{{ a.unit or '' }}</td>
                                 <td class="px-4 py-3 border-b border-gray-200 text-right">{{ a.total_qty or '' }}</td>
-                                <td class="px-4 py-3 border-b border-gray-200 text-right font-medium">{{ a.planned_today }}</td>
-                                <td class="px-4 py-3 border-b border-gray-200 text-right font-medium">{{ a.achieved_today }}</td>
-                                <td class="px-4 py-3 border-b border-gray-200 text-right font-medium">{{ a.planned_cumulative }}</td>
-                                <td class="px-4 py-3 border-b border-gray-200 text-right font-medium">{{ a.achieved_cumulative }}</td>
+                                <td class="px-4 py-3 border-b border-gray-200 text-right font-medium">{{ a.planned_today
+                                    }}</td>
+                                <td class="px-4 py-3 border-b border-gray-200 text-right font-medium">{{
+                                    a.achieved_today }}</td>
+                                <td class="px-4 py-3 border-b border-gray-200 text-right font-medium">{{
+                                    a.planned_cumulative }}</td>
+                                <td class="px-4 py-3 border-b border-gray-200 text-right font-medium">{{
+                                    a.achieved_cumulative }}</td>
                             </tr>
                             {% endfor %}
                             {% endfor %}
@@ -397,7 +483,8 @@
                     <span class="w-1 h-6 bg-green-600 rounded mr-3"></span>
                     Manpower & Equipment
                 </h3>
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500">No manpower or equipment recorded</div>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500">No manpower or
+                    equipment recorded</div>
             </div>
             {% endif %}
 
@@ -430,7 +517,8 @@
                         <tfoot>
                             <tr class="bg-gray-50 font-semibold">
                                 <td class="px-4 py-3 border-t border-gray-300" colspan="3">Totals</td>
-                                <td class="px-4 py-3 border-t border-gray-300">{{ mp_list | map(attribute='count') | sum }}</td>
+                                <td class="px-4 py-3 border-t border-gray-300">{{ mp_list | map(attribute='count') | sum
+                                    }}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -444,7 +532,7 @@
                 <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                     <span class="w-1 h-6 bg-green-600 rounded mr-3"></span>
                     Equipment Details
-                </h3>                
+                </h3>
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm border border-gray-300 rounded-lg overflow-hidden">
                         <thead class="bg-gradient-to-r from-green-600 to-green-700 text-white">
@@ -472,9 +560,12 @@
                         <tfoot>
                             <tr class="bg-gray-50 font-semibold">
                                 <td class="px-4 py-3 border-t border-gray-300" colspan="3">Totals</td>
-                                <td class="px-4 py-3 border-t border-gray-300">{{ eq_list | map(attribute='count') | sum }}</td>
-                                <td class="px-4 py-3 border-t border-gray-300">{{ eq_list | map(attribute='effective_hours') | sum }}</td>
-                                <td class="px-4 py-3 border-t border-gray-300">{{ eq_list | map(attribute='idle_hours') | sum }}</td>
+                                <td class="px-4 py-3 border-t border-gray-300">{{ eq_list | map(attribute='count') | sum
+                                    }}</td>
+                                <td class="px-4 py-3 border-t border-gray-300">{{ eq_list |
+                                    map(attribute='effective_hours') | sum }}</td>
+                                <td class="px-4 py-3 border-t border-gray-300">{{ eq_list | map(attribute='idle_hours')
+                                    | sum }}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -489,19 +580,23 @@
                     <div class="space-y-2">
                         <div>
                             <div class="text-xs text-gray-500">Any Quality concerns</div>
-                            <p class="text-sm text-gray-800 whitespace-pre-line">{{ r.data.concerns or 'Not filled' }}</p>
+                            <p class="text-sm text-gray-800 whitespace-pre-line">{{ r.data.concerns or 'Not filled' }}
+                            </p>
                         </div>
                         <div>
                             <div class="text-xs text-gray-500">Mitigation (for mentioned concern)</div>
-                            <p class="text-sm text-gray-800 whitespace-pre-line">{{ r.data.mitigation or 'Not filled' }}</p>
+                            <p class="text-sm text-gray-800 whitespace-pre-line">{{ r.data.mitigation or 'Not filled' }}
+                            </p>
                         </div>
                         <div>
                             <div class="text-xs text-gray-500">Any Safety incident</div>
-                            <p class="text-sm text-gray-800 whitespace-pre-line">{{ r.data.incidents or 'Not filled' }}</p>
+                            <p class="text-sm text-gray-800 whitespace-pre-line">{{ r.data.incidents or 'Not filled' }}
+                            </p>
                         </div>
                         <div>
                             <div class="text-xs text-gray-500">Action for avoidance</div>
-                            <p class="text-sm text-gray-800 whitespace-pre-line">{{ r.data.actionAvoidance or 'Not filled' }}</p>
+                            <p class="text-sm text-gray-800 whitespace-pre-line">{{ r.data.actionAvoidance or 'Not
+                                filled' }}</p>
                         </div>
                     </div>
                 </div>
@@ -614,6 +709,5 @@
         {% endfor %}
     </div>
 </body>
+
 </html>
-
-
