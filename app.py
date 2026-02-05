@@ -1672,18 +1672,19 @@ def get_previous_day_progress():
         return jsonify({'error': 'project_code and current_date are required'}), 400
     
     try:
-        # Parse current date and get previous date
-        from datetime import datetime, timedelta
-        current_dt = datetime.strptime(current_date, '%Y-%m-%d')
-        previous_dt = current_dt - timedelta(days=1)
-        previous_date = previous_dt.strftime('%Y-%m-%d')
-        
         conn = get_db_connection()
         previous_reports = conn.execute('''
-            SELECT activity_description, planned_cumulative, achieved_cumulative
-            FROM daily_progress_reports
-            WHERE project_code = ? AND report_date = ?
-        ''', (project_code, previous_date)).fetchall()
+            SELECT dpr.activity_description, dpr.planned_cumulative, dpr.achieved_cumulative
+            FROM daily_progress_reports dpr
+            WHERE dpr.project_code = ? 
+              AND dpr.report_date = (
+                SELECT MAX(report_date)
+                FROM daily_progress_reports dpr2
+                WHERE dpr2.project_code = dpr.project_code
+                  AND dpr2.activity_description = dpr.activity_description
+                  AND dpr2.report_date < ?
+              )
+        ''', (project_code, current_date)).fetchall()
         conn.close()
         
         # Convert to dictionary for easy lookup
