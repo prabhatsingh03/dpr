@@ -1,30 +1,15 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-import sqlite3
 import hashlib
 import os
 import asyncio
 from datetime import datetime, timedelta
 import json
+from config.database import get_db_connection
+import mysql.connector
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
 
-DATABASE = 'dpr_database.db'
-
-def get_db_connection():
-    """Get database connection"""
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db_if_not_exists():
-    """Initialize database if it doesn't exist"""
-    if not os.path.exists(DATABASE):
-        import init_database
-        init_database.init_database()
-
-# Initialize database on startup
-init_db_if_not_exists()
 
 # Notifications storage (JSON file) and helpers
 NOTIFICATIONS_FILE = 'notifications.json'
@@ -89,7 +74,10 @@ def index():
 def get_projects():
     """API endpoint to get all projects"""
     conn = get_db_connection()
-    projects = conn.execute('SELECT * FROM projects ORDER BY code').fetchall()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('SELECT * FROM projects ORDER BY code')
+    projects = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     projects_list = []
@@ -113,14 +101,18 @@ def get_report_preparers():
     project_code = request.args.get('project_code')
     
     conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
     if project_code:
-        preparers = conn.execute('''
+        cursor.execute('''
             SELECT name, designation FROM report_preparers 
-            WHERE project_code = ? OR project_code IS NULL 
+            WHERE project_code = %s OR project_code IS NULL 
             ORDER BY name
-        ''', (project_code,)).fetchall()
+        ''', (project_code,))
+        preparers = cursor.fetchall()
     else:
-        preparers = conn.execute('SELECT name, designation FROM report_preparers ORDER BY name').fetchall()
+        cursor.execute('SELECT name, designation FROM report_preparers ORDER BY name')
+        preparers = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return jsonify([{'name': p['name'], 'designation': p['designation']} for p in preparers])
@@ -131,14 +123,18 @@ def get_site_managers():
     project_code = request.args.get('project_code')
     
     conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
     if project_code:
-        managers = conn.execute('''
+        cursor.execute('''
             SELECT name, designation FROM site_managers 
-            WHERE project_code = ? OR project_code IS NULL 
+            WHERE project_code = %s OR project_code IS NULL 
             ORDER BY name
-        ''', (project_code,)).fetchall()
+        ''', (project_code,))
+        managers = cursor.fetchall()
     else:
-        managers = conn.execute('SELECT name, designation FROM site_managers ORDER BY name').fetchall()
+        cursor.execute('SELECT name, designation FROM site_managers ORDER BY name')
+        managers = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return jsonify([{'name': m['name'], 'designation': m['designation']} for m in managers])
@@ -147,7 +143,11 @@ def get_site_managers():
 def get_departments():
     """API endpoint to get all departments"""
     conn = get_db_connection()
-    departments = conn.execute('SELECT name FROM departments ORDER BY name').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT name FROM departments ORDER BY name')
+
+    departments = cursor.fetchall()
     conn.close()
     
     return jsonify([dept['name'] for dept in departments])
@@ -158,14 +158,18 @@ def get_contractors():
     project_code = request.args.get('project_code')
     
     conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
     if project_code:
-        contractors = conn.execute('''
+        cursor.execute('''
             SELECT contractor_name, contact_person, contact_details FROM contractors 
-            WHERE project_code = ? OR project_code IS NULL 
+            WHERE project_code = %s OR project_code IS NULL 
             ORDER BY contractor_name
-        ''', (project_code,)).fetchall()
+        ''', (project_code,))
+        contractors = cursor.fetchall()
     else:
-        contractors = conn.execute('SELECT contractor_name, contact_person, contact_details FROM contractors ORDER BY contractor_name').fetchall()
+        cursor.execute('SELECT contractor_name, contact_person, contact_details FROM contractors ORDER BY contractor_name')
+        contractors = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return jsonify([{
@@ -178,7 +182,12 @@ def get_contractors():
 def get_manpower_designations():
     """API endpoint to get all manpower designations"""
     conn = get_db_connection()
-    designations = conn.execute('SELECT designation FROM manpower_designations ORDER BY designation').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT designation FROM manpower_designations ORDER BY designation')
+
+    designations = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return jsonify([designation['designation'] for designation in designations])
@@ -187,7 +196,11 @@ def get_manpower_designations():
 def get_equipment_descriptions():
     """API endpoint to get all equipment descriptions"""
     conn = get_db_connection()
-    equipment = conn.execute('SELECT description FROM equipment_descriptions ORDER BY description').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT description FROM equipment_descriptions ORDER BY description')
+
+    equipment = cursor.fetchall()
     conn.close()
     
     return jsonify([equip['description'] for equip in equipment])
@@ -203,11 +216,14 @@ def get_project_sections():
         return jsonify({'error': 'project_code is required'}), 400
     
     conn = get_db_connection()
-    sections = conn.execute('''
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
         SELECT * FROM project_sections 
-        WHERE project_code = ? 
+        WHERE project_code = %s 
         ORDER BY section_name
-    ''', (project_code,)).fetchall()
+    ''', (project_code,))
+    sections = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     sections_list = []
@@ -240,38 +256,49 @@ def get_project_activities():
                 return None
             section_row = None
             # Try match by string section_id first
-            section_row = conn.execute('''
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute('''
                 SELECT id, section_id FROM project_sections
-                WHERE project_code = ? AND section_id = ?
-            ''', (project, raw_identifier)).fetchone()
+                WHERE project_code = %s AND section_id = %s
+            ''', (project, raw_identifier))
+            section_row = cursor.fetchone()
+            
             if section_row:
+                cursor.close()
                 return section_row
+            
             # If not found, attempt to interpret as integer primary key
             try:
                 int_id = int(raw_identifier)
-                section_row = conn.execute('''
+                cursor.execute('''
                     SELECT id, section_id FROM project_sections
-                    WHERE project_code = ? AND id = ?
-                ''', (project, int_id)).fetchone()
+                    WHERE project_code = %s AND id = %s
+                ''', (project, int_id))
+                section_row = cursor.fetchone()
+                cursor.close()
                 return section_row
             except Exception:
+                cursor.close()
                 return None
 
         if section_identifier:
             # Resolve to DB id
             section_row = resolve_section(project_code, section_identifier)
             if not section_row:
+                cursor.close()
                 conn.close()
                 return jsonify({'error': f'section "{section_identifier}" not found for project {project_code}'}), 404
 
             section_db_id = section_row['id']
             # Get activities for this section id
-            activities = conn.execute('''
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute('''
                 SELECT activity_description, area, unit, total_qty_planned
                 FROM project_activities
-                WHERE project_code = ? AND section_id = ?
+                WHERE project_code = %s AND section_id = %s
                 ORDER BY activity_description
-            ''', (project_code, section_db_id)).fetchall()
+            ''', (project_code, section_db_id))
+            activities = cursor.fetchall()
             conn.close()
 
             activities_list = []
@@ -285,14 +312,17 @@ def get_project_activities():
             return jsonify(activities_list)
         else:
             # Get all activities for the project, grouped by the canonical string section_id
-            rows = conn.execute('''
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute('''
                 SELECT ps.section_id AS section_identifier,
                        pa.activity_description, pa.area, pa.unit, pa.total_qty_planned
                 FROM project_activities pa
                 JOIN project_sections ps ON pa.section_id = ps.id
-                WHERE pa.project_code = ?
+                WHERE pa.project_code = %s
                 ORDER BY ps.section_id, pa.activity_description
-            ''', (project_code,)).fetchall()
+            ''', (project_code,))
+            rows = cursor.fetchall()
+            cursor.close()
             conn.close()
 
             activities_by_section = {}
@@ -330,31 +360,39 @@ def api_add_project_section():
         section_id = section_name.replace(' ', '').lower()
         
         # Check if section already exists (check both section_id and section_name)
-        existing_section = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT id FROM project_sections 
-            WHERE project_code = ? AND (section_id = ? OR section_name = ?)
-        ''', (project_code, section_id, section_name)).fetchone()
+            WHERE project_code = %s AND (section_id = %s OR section_name = %s)
+        ''', (project_code, section_id, section_name))
+        existing_section = cursor.fetchone()
         
         if existing_section:
+            cursor.close()
             conn.close()
             return jsonify({'error': 'Section already exists', 'section_id': existing_section['id']}), 409
         
         # Get the next order index
-        max_order = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT MAX(order_index) as max_order FROM project_sections 
-            WHERE project_code = ?
-        ''', (project_code,)).fetchone()
+            WHERE project_code = %s
+        ''', (project_code,))
+        max_order = cursor.fetchone()
         
         next_order = (max_order['max_order'] or 0) + 1
         
         # Insert new section
-        cursor = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('''
             INSERT INTO project_sections (project_code, section_id, section_name, order_index)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
         ''', (project_code, section_id, section_name, next_order))
         
         db_section_id = cursor.lastrowid
         conn.commit()
+        cursor.close()
         conn.close()
         
         return jsonify({
@@ -387,10 +425,12 @@ def api_add_project_activity():
         conn = get_db_connection()
         
         # Get section ID - try both section_name and section_id fields
-        section = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT id, section_id FROM project_sections 
-            WHERE project_code = ? AND (section_name = ? OR section_id = ?)
-        ''', (project_code, section_name, section_name)).fetchone()
+            WHERE project_code = %s AND (section_name = %s OR section_id = %s)
+        ''', (project_code, section_name, section_name))
+        section = cursor.fetchone()
         
         if not section:
             conn.close()
@@ -400,27 +440,34 @@ def api_add_project_activity():
         section_db_id = section['id']
         
         # Check if activity already exists in this section
-        existing_activity = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT id FROM project_activities 
-            WHERE project_code = ? AND section_id = ? AND activity_description = ?
-        ''', (project_code, section_db_id, activity_description)).fetchone()
+            WHERE project_code = %s AND section_id = %s AND activity_description = %s
+        ''', (project_code, section_db_id, activity_description))
+        existing_activity = cursor.fetchone()
         
         if existing_activity:
+            cursor.close()
             conn.close()
             return jsonify({'error': 'Activity already exists', 'activity_id': existing_activity['id']}), 409
         
         # Get the next order index for this section
-        max_order = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT MAX(order_index) as max_order FROM project_activities 
-            WHERE section_id = ?
-        ''', (section_db_id,)).fetchone()
+            WHERE section_id = %s
+        ''', (section_db_id,))
+        max_order = cursor.fetchone()
         
         next_order = (max_order['max_order'] or 0) + 1
         
         # Insert new activity
-        cursor = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('''
             INSERT INTO project_activities (project_code, section_id, activity_description, area, unit, total_qty_planned, order_index)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''', (project_code, section_db_id, activity_description, data.get('area', ''), unit, total_qty, next_order))
         
         activity_id = cursor.lastrowid
@@ -460,24 +507,29 @@ def api_update_project_activity():
         conn = get_db_connection()
         
         # Find the activity to update
-        activity = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT pa.id FROM project_activities pa
             JOIN project_sections ps ON pa.section_id = ps.id
-            WHERE pa.project_code = ? AND ps.section_name = ? AND pa.activity_description = ?
-        ''', (project_code, section_name, activity_description)).fetchone()
+            WHERE pa.project_code = %s AND ps.section_name = %s AND pa.activity_description = %s
+        ''', (project_code, section_name, activity_description))
+        activity = cursor.fetchone()
         
         if not activity:
             conn.close()
             return jsonify({'error': f'Activity "{activity_description}" not found in section "{section_name}" for project {project_code}'}), 404
         
         # Update the activity
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             UPDATE project_activities 
-            SET area = ?, unit = ?, total_qty_planned = ?
-            WHERE id = ?
+            SET area = %s, unit = %s, total_qty_planned = %s
+            WHERE id = %s
         ''', (area, unit, total_qty, activity['id']))
         
         conn.commit()
+        cursor.close()
         conn.close()
         
         return jsonify({
@@ -506,10 +558,12 @@ def admin_login():
         password_hash = hashlib.sha256(password.encode()).hexdigest()
         
         conn = get_db_connection()
-        user = conn.execute(
-            'SELECT * FROM admin_users WHERE username = ? AND password_hash = ?',
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            'SELECT * FROM admin_users WHERE username = %s AND password_hash = %s',
             (username, password_hash)
-        ).fetchone()
+        )
+        user = cursor.fetchone()
         conn.close()
         
         if user:
@@ -552,12 +606,33 @@ def admin_dashboard():
     conn = get_db_connection()
     
     # Get counts for dashboard
-    project_count = conn.execute('SELECT COUNT(*) as count FROM projects').fetchone()['count']
-    preparers_count = conn.execute('SELECT COUNT(*) as count FROM report_preparers').fetchone()['count']
-    managers_count = conn.execute('SELECT COUNT(*) as count FROM site_managers').fetchone()['count']
-    department_count = conn.execute('SELECT COUNT(*) as count FROM departments').fetchone()['count']
-    contractor_count = conn.execute('SELECT COUNT(*) as count FROM contractors').fetchone()['count']
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT COUNT(*) as count FROM projects')
+
+    project_count = cursor.fetchone()['count']
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT COUNT(*) as count FROM report_preparers')
+
+    preparers_count = cursor.fetchone()['count']
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT COUNT(*) as count FROM site_managers')
+
+    managers_count = cursor.fetchone()['count']
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT COUNT(*) as count FROM departments')
+
+    department_count = cursor.fetchone()['count']
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT COUNT(*) as count FROM contractors')
+
+    contractor_count = cursor.fetchone()['count']
     
+    cursor.close()
     conn.close()
     
     stats = {
@@ -578,7 +653,11 @@ def admin_view_reports():
     report_date = request.args.get('report_date', '').strip()
 
     conn = get_db_connection()
-    projects = conn.execute('SELECT code, name FROM projects ORDER BY code').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT code, name FROM projects ORDER BY code')
+
+    projects = cursor.fetchall()
 
     reports = []
     if project_code or report_date:
@@ -586,10 +665,10 @@ def admin_view_reports():
         where = []
         params = []
         if project_code:
-            where.append('sr.project_code = ?')
+            where.append('sr.project_code = %s')
             params.append(project_code)
         if report_date:
-            where.append('sr.report_date = ?')
+            where.append('sr.report_date = %s')
             params.append(report_date)
 
         where_sql = ' WHERE ' + ' AND '.join(where) if where else ''
@@ -605,7 +684,11 @@ def admin_view_reports():
             {where_sql}
             ORDER BY sr.report_date DESC, sr.report_number DESC
         '''
-        reports = conn.execute(query, tuple(params)).fetchall()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute(query, tuple(params))
+
+        reports = cursor.fetchall()
 
     conn.close()
 
@@ -651,17 +734,21 @@ def public_view_reports():
     report_date = request.args.get('report_date', '').strip()
 
     conn = get_db_connection()
-    projects = conn.execute('SELECT code, name FROM projects ORDER BY code').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT code, name FROM projects ORDER BY code')
+
+    projects = cursor.fetchall()
 
     reports = []
     if project_code or report_date:
         where = []
         params = []
         if project_code:
-            where.append('sr.project_code = ?')
+            where.append('sr.project_code = %s')
             params.append(project_code)
         if report_date:
-            where.append('sr.report_date = ?')
+            where.append('sr.report_date = %s')
             params.append(report_date)
         where_sql = ' WHERE ' + ' AND '.join(where) if where else ''
         query = f'''
@@ -676,7 +763,11 @@ def public_view_reports():
             {where_sql}
             ORDER BY sr.report_date DESC, sr.report_number DESC
         '''
-        reports = conn.execute(query, tuple(params)).fetchall()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute(query, tuple(params))
+
+        reports = cursor.fetchall()
     conn.close()
 
     parsed_reports = []
@@ -729,7 +820,11 @@ def get_notifications():
 def admin_projects():
     """Admin projects management"""
     conn = get_db_connection()
-    projects = conn.execute('SELECT * FROM projects ORDER BY code').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT * FROM projects ORDER BY code')
+
+    projects = cursor.fetchall()
     conn.close()
     
     return render_template('admin_projects.html', projects=projects)
@@ -742,18 +837,21 @@ def add_project():
     
     conn = get_db_connection()
     try:
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             INSERT INTO projects (code, name, manager, project_manager_client, client, contractor, report_id_fragment, target_completion)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ''', (
             data['code'], data['name'], data['manager'], data['projectManagerClient'],
             data['client'], data['contractor'], data['reportIdFragment'], data['targetCompletion']
         ))
         conn.commit()
         return jsonify({'success': True, 'message': 'Project added successfully'})
-    except sqlite3.IntegrityError:
+    except mysql.connector.IntegrityError:
         return jsonify({'success': False, 'message': 'Project code already exists'})
     finally:
+        cursor.close()
         conn.close()
 
 @app.route('/admin/projects/update/<int:project_id>', methods=['POST'])
@@ -763,10 +861,12 @@ def update_project(project_id):
     data = request.get_json()
     
     conn = get_db_connection()
-    conn.execute('''
+    cursor = conn.cursor()
+
+    cursor.execute('''
         UPDATE projects 
-        SET code=?, name=?, manager=?, project_manager_client=?, client=?, contractor=?, report_id_fragment=?, target_completion=?
-        WHERE id=?
+        SET code=%s, name=%s, manager=%s, project_manager_client=%s, client=%s, contractor=%s, report_id_fragment=%s, target_completion=%s
+        WHERE id=%s
     ''', (
         data['code'], data['name'], data['manager'], data['projectManagerClient'],
         data['client'], data['contractor'], data['reportIdFragment'], data['targetCompletion'], project_id
@@ -781,8 +881,11 @@ def update_project(project_id):
 def delete_project(project_id):
     """Delete project"""
     conn = get_db_connection()
-    conn.execute('DELETE FROM projects WHERE id = ?', (project_id,))
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM projects WHERE id = %s', (project_id,))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({'success': True, 'message': 'Project deleted successfully'})
@@ -792,7 +895,11 @@ def delete_project(project_id):
 def admin_staff():
     """Admin staff management"""
     conn = get_db_connection()
-    staff = conn.execute('SELECT * FROM staff ORDER BY name').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT * FROM staff ORDER BY name')
+
+    staff = cursor.fetchall()
     conn.close()
     
     return render_template('admin_staff.html', staff=staff)
@@ -803,7 +910,12 @@ def admin_staff():
 def admin_manpower_designations():
     """Admin manpower designations management"""
     conn = get_db_connection()
-    designations = conn.execute('SELECT * FROM manpower_designations ORDER BY designation').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT * FROM manpower_designations ORDER BY designation')
+
+    designations = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return render_template('admin_manpower_designations.html', designations=designations)
@@ -819,11 +931,13 @@ def add_manpower_designation():
         
     conn = get_db_connection()
     try:
-        conn.execute('INSERT INTO manpower_designations (designation) VALUES (?)',
+        cursor = conn.cursor()
+
+        cursor.execute('INSERT INTO manpower_designations (designation) VALUES (%s)',
                     (data['designation'].strip(),))
         conn.commit()
         return jsonify({'success': True, 'message': 'Designation added successfully'})
-    except sqlite3.IntegrityError:
+    except mysql.connector.IntegrityError:
         return jsonify({'success': False, 'message': 'Designation already exists'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -841,11 +955,13 @@ def update_manpower_designation(id):
     
     conn = get_db_connection()
     try:
-        conn.execute('UPDATE manpower_designations SET designation=? WHERE id=?',
+        cursor = conn.cursor()
+
+        cursor.execute('UPDATE manpower_designations SET designation=%s WHERE id=%s',
                     (data['designation'].strip(), id))
         conn.commit()
         return jsonify({'success': True, 'message': 'Designation updated successfully'})
-    except sqlite3.IntegrityError:
+    except mysql.connector.IntegrityError:
         return jsonify({'success': False, 'message': 'Designation already exists'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -858,12 +974,15 @@ def delete_manpower_designation(id):
     """Delete manpower designation"""
     conn = get_db_connection()
     try:
-        conn.execute('DELETE FROM manpower_designations WHERE id = ?', (id,))
+        cursor = conn.cursor()
+
+        cursor.execute('DELETE FROM manpower_designations WHERE id = %s', (id,))
         conn.commit()
         return jsonify({'success': True, 'message': 'Designation deleted successfully'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
     finally:
+        cursor.close()
         conn.close()
 
 # Equipment Description Management Routes
@@ -872,7 +991,12 @@ def delete_manpower_designation(id):
 def admin_equipment_descriptions():
     """Admin equipment descriptions management"""
     conn = get_db_connection()
-    descriptions = conn.execute('SELECT * FROM equipment_descriptions ORDER BY description').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT * FROM equipment_descriptions ORDER BY description')
+
+    descriptions = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return render_template('admin_equipment_descriptions.html', descriptions=descriptions)
@@ -888,11 +1012,13 @@ def add_equipment_description():
         
     conn = get_db_connection()
     try:
-        conn.execute('INSERT INTO equipment_descriptions (description) VALUES (?)',
+        cursor = conn.cursor()
+
+        cursor.execute('INSERT INTO equipment_descriptions (description) VALUES (%s)',
                     (data['description'].strip(),))
         conn.commit()
         return jsonify({'success': True, 'message': 'Equipment description added successfully'})
-    except sqlite3.IntegrityError:
+    except mysql.connector.IntegrityError:
         return jsonify({'success': False, 'message': 'Equipment description already exists'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -910,11 +1036,13 @@ def update_equipment_description(id):
     
     conn = get_db_connection()
     try:
-        conn.execute('UPDATE equipment_descriptions SET description=? WHERE id=?',
+        cursor = conn.cursor()
+
+        cursor.execute('UPDATE equipment_descriptions SET description=%s WHERE id=%s',
                     (data['description'].strip(), id))
         conn.commit()
         return jsonify({'success': True, 'message': 'Equipment description updated successfully'})
-    except sqlite3.IntegrityError:
+    except mysql.connector.IntegrityError:
         return jsonify({'success': False, 'message': 'Equipment description already exists'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
@@ -927,12 +1055,15 @@ def delete_equipment_description(id):
     """Delete equipment description"""
     conn = get_db_connection()
     try:
-        conn.execute('DELETE FROM equipment_descriptions WHERE id = ?', (id,))
+        cursor = conn.cursor()
+
+        cursor.execute('DELETE FROM equipment_descriptions WHERE id = %s', (id,))
         conn.commit()
         return jsonify({'success': True, 'message': 'Equipment description deleted successfully'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
     finally:
+        cursor.close()
         conn.close()
 
 @app.route('/admin/staff/add', methods=['POST'])
@@ -943,10 +1074,12 @@ def add_staff():
     
     conn = get_db_connection()
     try:
-        conn.execute('INSERT INTO staff (name, designation) VALUES (?, ?)', (data['name'], data['designation']))
+        cursor = conn.cursor()
+
+        cursor.execute('INSERT INTO staff (name, designation) VALUES (%s, %s)', (data['name'], data['designation']))
         conn.commit()
         return jsonify({'success': True, 'message': 'Staff member added successfully'})
-    except sqlite3.IntegrityError:
+    except mysql.connector.IntegrityError:
         return jsonify({'success': False, 'message': 'Staff member name already exists'})
     finally:
         conn.close()
@@ -958,7 +1091,9 @@ def update_staff(staff_id):
     data = request.get_json()
     
     conn = get_db_connection()
-    conn.execute('UPDATE staff SET name=?, designation=? WHERE id=?', (data['name'], data['designation'], staff_id))
+    cursor = conn.cursor()
+
+    cursor.execute('UPDATE staff SET name=%s, designation=%s WHERE id=%s', (data['name'], data['designation'], staff_id))
     conn.commit()
     conn.close()
     
@@ -969,8 +1104,11 @@ def update_staff(staff_id):
 def delete_staff(staff_id):
     """Delete staff member"""
     conn = get_db_connection()
-    conn.execute('DELETE FROM staff WHERE id = ?', (staff_id,))
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM staff WHERE id = %s', (staff_id,))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({'success': True, 'message': 'Staff member deleted successfully'})
@@ -980,7 +1118,12 @@ def delete_staff(staff_id):
 def admin_departments():
     """Admin departments management"""
     conn = get_db_connection()
-    departments = conn.execute('SELECT * FROM departments ORDER BY name').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT * FROM departments ORDER BY name')
+
+    departments = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return render_template('admin_departments.html', departments=departments)
@@ -993,10 +1136,12 @@ def add_department():
     
     conn = get_db_connection()
     try:
-        conn.execute('INSERT INTO departments (name) VALUES (?)', (data['name'],))
+        cursor = conn.cursor()
+
+        cursor.execute('INSERT INTO departments (name) VALUES (%s)', (data['name'],))
         conn.commit()
         return jsonify({'success': True, 'message': 'Department added successfully'})
-    except sqlite3.IntegrityError:
+    except mysql.connector.IntegrityError:
         return jsonify({'success': False, 'message': 'Department name already exists'})
     finally:
         conn.close()
@@ -1008,7 +1153,9 @@ def update_department(dept_id):
     data = request.get_json()
     
     conn = get_db_connection()
-    conn.execute('UPDATE departments SET name=? WHERE id=?', (data['name'], dept_id))
+    cursor = conn.cursor()
+
+    cursor.execute('UPDATE departments SET name=%s WHERE id=%s', (data['name'], dept_id))
     conn.commit()
     conn.close()
     
@@ -1019,8 +1166,11 @@ def update_department(dept_id):
 def delete_department(dept_id):
     """Delete department"""
     conn = get_db_connection()
-    conn.execute('DELETE FROM departments WHERE id = ?', (dept_id,))
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM departments WHERE id = %s', (dept_id,))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({'success': True, 'message': 'Department deleted successfully'})
@@ -1035,14 +1185,22 @@ def delete_department(dept_id):
 def admin_project_sections():
     """Admin project sections management"""
     conn = get_db_connection()
-    sections = conn.execute('''
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
         SELECT ps.*, p.name as project_name 
         FROM project_sections ps
         JOIN projects p ON ps.project_code = p.code
         ORDER BY ps.project_code, ps.section_name
-    ''').fetchall()
+    ''')
+    sections = cursor.fetchall()
     
-    projects = conn.execute('SELECT code, name FROM projects ORDER BY code').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    
+    cursor.execute('SELECT code, name FROM projects ORDER BY code')
+
+    
+    projects = cursor.fetchall()
     conn.close()
     
     return render_template('admin_project_sections.html', sections=sections, projects=projects)
@@ -1055,18 +1213,21 @@ def add_project_section():
     
     conn = get_db_connection()
     try:
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             INSERT INTO project_sections (project_code, section_id, section_name, area, unit, total_qty_planned)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
         ''', (
             data['projectCode'], data['sectionId'], data['sectionName'],
             data['area'], data['unit'], data['totalQtyPlanned']
         ))
         conn.commit()
         return jsonify({'success': True, 'message': 'Project section added successfully'})
-    except sqlite3.IntegrityError:
+    except mysql.connector.IntegrityError:
         return jsonify({'success': False, 'message': 'Section already exists for this project'})
     finally:
+        cursor.close()
         conn.close()
 
 @app.route('/admin/project-sections/update/<int:section_id>', methods=['POST'])
@@ -1076,15 +1237,18 @@ def update_project_section(section_id):
     data = request.get_json()
     
     conn = get_db_connection()
-    conn.execute('''
+    cursor = conn.cursor()
+
+    cursor.execute('''
         UPDATE project_sections 
-        SET section_id=?, section_name=?, area=?, unit=?, total_qty_planned=?
-        WHERE id=?
+        SET section_id=%s, section_name=%s, area=%s, unit=%s, total_qty_planned=%s
+        WHERE id=%s
     ''', (
         data['sectionId'], data['sectionName'], data['area'], 
         data['unit'], data['totalQtyPlanned'], section_id
     ))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({'success': True, 'message': 'Project section updated successfully'})
@@ -1095,10 +1259,15 @@ def delete_project_section(section_id):
     """Delete project section"""
     conn = get_db_connection()
     # First delete associated activities
-    conn.execute('DELETE FROM project_activities WHERE project_code = (SELECT project_code FROM project_sections WHERE id = ?) AND section_id = (SELECT section_id FROM project_sections WHERE id = ?)', (section_id, section_id))
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM project_activities WHERE project_code = (SELECT project_code FROM project_sections WHERE id = %s) AND section_id = (SELECT section_id FROM project_sections WHERE id = %s)', (section_id, section_id))
     # Then delete section
-    conn.execute('DELETE FROM project_sections WHERE id = ?', (section_id,))
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM project_sections WHERE id = %s', (section_id,))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({'success': True, 'message': 'Project section deleted successfully'})
@@ -1108,16 +1277,28 @@ def delete_project_section(section_id):
 def admin_project_activities():
     """Admin project activities management"""
     conn = get_db_connection()
-    activities = conn.execute('''
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
         SELECT pa.*, p.name as project_name, ps.section_name
         FROM project_activities pa
         JOIN projects p ON pa.project_code = p.code
         JOIN project_sections ps ON pa.section_id = ps.id
         ORDER BY pa.project_code, pa.section_id, pa.activity_description
-    ''').fetchall()
+    ''')
+    activities = cursor.fetchall()
     
-    projects = conn.execute('SELECT code, name FROM projects ORDER BY code').fetchall()
-    sections_rows = conn.execute('SELECT id, project_code, section_id, section_name FROM project_sections ORDER BY project_code, section_name').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    
+    cursor.execute('SELECT code, name FROM projects ORDER BY code')
+
+    
+    projects = cursor.fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute('SELECT id, project_code, section_id, section_name FROM project_sections ORDER BY project_code, section_name')
+
+    sections_rows = cursor.fetchall()
     conn.close()
     
     # Convert Row objects to dictionaries for JSON serialization
@@ -1141,17 +1322,22 @@ def add_project_activity():
     conn = get_db_connection()
     
     # Get the next order index for this section
-    max_order = conn.execute('''
+    max_order = None
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
         SELECT MAX(order_index) as max_order FROM project_activities 
-        WHERE section_id = ?
-    ''', (data['sectionId'],)).fetchone()
+        WHERE section_id = %s
+    ''', (data['sectionId'],))
+    max_order = cursor.fetchone()
     
     next_order = (max_order['max_order'] or 0) + 1
     
     try:
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             INSERT INTO project_activities (project_code, section_id, activity_description, area, unit, total_qty_planned, order_index)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''', (
             data['projectCode'], data['sectionId'], data['activityDescription'],
             data['area'], data['unit'], data['totalQtyPlanned'], next_order
@@ -1159,10 +1345,11 @@ def add_project_activity():
         conn.commit()
         conn.close()
         return jsonify({'success': True, 'message': 'Project activity added successfully'})
-    except sqlite3.IntegrityError:
+    except mysql.connector.IntegrityError:
         conn.close()
         return jsonify({'success': False, 'message': 'Activity already exists in this section'}), 409
     except Exception as e:
+        cursor.close()
         conn.close()
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
@@ -1173,15 +1360,18 @@ def update_project_activity(activity_id):
     data = request.get_json()
     
     conn = get_db_connection()
-    conn.execute('''
+    cursor = conn.cursor()
+
+    cursor.execute('''
         UPDATE project_activities 
-        SET section_id=?, activity_description=?, area=?, unit=?, total_qty_planned=?
-        WHERE id=?
+        SET section_id=%s, activity_description=%s, area=%s, unit=%s, total_qty_planned=%s
+        WHERE id=%s
     ''', (
         data['sectionId'], data['activityDescription'], data['area'],
         data['unit'], data['totalQtyPlanned'], activity_id
     ))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({'success': True, 'message': 'Project activity updated successfully'})
@@ -1191,7 +1381,9 @@ def update_project_activity(activity_id):
 def delete_project_activity(activity_id):
     """Delete project activity"""
     conn = get_db_connection()
-    conn.execute('DELETE FROM project_activities WHERE id = ?', (activity_id,))
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM project_activities WHERE id = %s', (activity_id,))
     conn.commit()
     conn.close()
     
@@ -1203,14 +1395,22 @@ def delete_project_activity(activity_id):
 def admin_report_preparers():
     """Admin report preparers management"""
     conn = get_db_connection()
-    preparers = conn.execute('''
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
         SELECT rp.*, p.name as project_name 
         FROM report_preparers rp
         LEFT JOIN projects p ON rp.project_code = p.code
         ORDER BY rp.project_code, rp.name
-    ''').fetchall()
+    ''')
+    preparers = cursor.fetchall()
     
-    projects = conn.execute('SELECT code, name FROM projects ORDER BY code').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    
+    cursor.execute('SELECT code, name FROM projects ORDER BY code')
+
+    
+    projects = cursor.fetchall()
     conn.close()
     
     return render_template('admin_report_preparers.html', preparers=preparers, projects=projects)
@@ -1220,14 +1420,23 @@ def admin_report_preparers():
 def admin_contractors():
     """Admin contractors management"""
     conn = get_db_connection()
-    contractors = conn.execute('''
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
         SELECT c.*, p.name as project_name 
         FROM contractors c
         LEFT JOIN projects p ON c.project_code = p.code
         ORDER BY c.project_code, c.contractor_name
-    ''').fetchall()
+    ''')
+    contractors = cursor.fetchall()
     
-    projects = conn.execute('SELECT code, name FROM projects ORDER BY code').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    
+    cursor.execute('SELECT code, name FROM projects ORDER BY code')
+
+    
+    projects = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return render_template('admin_contractors.html', contractors=contractors, projects=projects)
@@ -1237,14 +1446,23 @@ def admin_contractors():
 def admin_site_managers():
     """Admin site managers management"""
     conn = get_db_connection()
-    managers = conn.execute('''
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
         SELECT sm.*, p.name as project_name 
         FROM site_managers sm
         LEFT JOIN projects p ON sm.project_code = p.code
         ORDER BY sm.project_code, sm.name
-    ''').fetchall()
+    ''')
+    managers = cursor.fetchall()
     
-    projects = conn.execute('SELECT code, name FROM projects ORDER BY code').fetchall()
+    cursor = conn.cursor(dictionary=True)
+
+    
+    cursor.execute('SELECT code, name FROM projects ORDER BY code')
+
+    
+    projects = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return render_template('admin_site_managers.html', managers=managers, projects=projects)
@@ -1259,12 +1477,18 @@ def add_report_preparer():
     conn = get_db_connection()
     try:
         # Global unique by name
-        existing = conn.execute('SELECT 1 FROM report_preparers WHERE name = ?', (data['name'],)).fetchone()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('SELECT 1 FROM report_preparers WHERE name = %s', (data['name'],))
+
+        existing = cursor.fetchone()
         if existing:
             return jsonify({'success': False, 'message': 'Report preparer name must be unique'}), 409
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             INSERT INTO report_preparers (name, designation, project_code) 
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
         ''', (data['name'], data['designation'], data.get('project_code')))
         conn.commit()
         return jsonify({'success': True, 'message': 'Report preparer added successfully'})
@@ -1282,19 +1506,26 @@ def update_report_preparer(preparer_id):
     conn = get_db_connection()
     try:
         # Enforce unique name on update
-        existing = conn.execute('SELECT 1 FROM report_preparers WHERE name = ? AND id <> ?', (data['name'], preparer_id)).fetchone()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('SELECT 1 FROM report_preparers WHERE name = %s AND id <> %s', (data['name'], preparer_id))
+
+        existing = cursor.fetchone()
         if existing:
             return jsonify({'success': False, 'message': 'Report preparer name must be unique'}), 409
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             UPDATE report_preparers 
-            SET name=?, designation=?, project_code=? 
-            WHERE id=?
+            SET name=%s, designation=%s, project_code=%s 
+            WHERE id=%s
         ''', (data['name'], data['designation'], data.get('project_code'), preparer_id))
         conn.commit()
         return jsonify({'success': True, 'message': 'Report preparer updated successfully'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
     finally:
+        cursor.close()
         conn.close()
 
 @app.route('/admin/report-preparers/delete/<int:preparer_id>', methods=['DELETE'])
@@ -1302,8 +1533,11 @@ def update_report_preparer(preparer_id):
 def delete_report_preparer(preparer_id):
     """Delete report preparer"""
     conn = get_db_connection()
-    conn.execute('DELETE FROM report_preparers WHERE id = ?', (preparer_id,))
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM report_preparers WHERE id = %s', (preparer_id,))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({'success': True, 'message': 'Report preparer deleted successfully'})
@@ -1317,14 +1551,18 @@ def add_contractor():
     conn = get_db_connection()
     try:
         # Enforce unique contractor per project
-        existing = conn.execute('''
-            SELECT 1 FROM contractors WHERE project_code = ? AND contractor_name = ?
-        ''', (data.get('project_code'), data['contractor_name'])).fetchone()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
+            SELECT 1 FROM contractors WHERE project_code = %s AND contractor_name = %s
+        ''', (data.get('project_code'), data['contractor_name']))
+        existing = cursor.fetchone()
         if existing:
             return jsonify({'success': False, 'message': 'Contractor already exists for this project'}), 409
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             INSERT INTO contractors (contractor_name, project_code, contact_person, contact_details) 
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
         ''', (data['contractor_name'], data.get('project_code'), data.get('contact_person', ''), data.get('contact_details', '')))
         conn.commit()
         return jsonify({'success': True, 'message': 'Contractor added successfully'})
@@ -1342,22 +1580,27 @@ def update_contractor(contractor_id):
     conn = get_db_connection()
     try:
         # Check uniqueness on update
-        existing = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT 1 FROM contractors 
-            WHERE project_code = ? AND contractor_name = ? AND id <> ?
-        ''', (data.get('project_code'), data['contractor_name'], contractor_id)).fetchone()
+            WHERE project_code = %s AND contractor_name = %s AND id <> %s
+        ''', (data.get('project_code'), data['contractor_name'], contractor_id))
+        existing = cursor.fetchone()
         if existing:
             return jsonify({'success': False, 'message': 'Contractor already exists for this project'}), 409
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             UPDATE contractors 
-            SET contractor_name=?, project_code=?, contact_person=?, contact_details=? 
-            WHERE id=?
+            SET contractor_name=%s, project_code=%s, contact_person=%s, contact_details=%s 
+            WHERE id=%s
         ''', (data['contractor_name'], data.get('project_code'), data.get('contact_person', ''), data.get('contact_details', ''), contractor_id))
         conn.commit()
         return jsonify({'success': True, 'message': 'Contractor updated successfully'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
     finally:
+        cursor.close()
         conn.close()
 
 @app.route('/admin/contractors/delete/<int:contractor_id>', methods=['DELETE'])
@@ -1365,8 +1608,11 @@ def update_contractor(contractor_id):
 def delete_contractor(contractor_id):
     """Delete contractor"""
     conn = get_db_connection()
-    conn.execute('DELETE FROM contractors WHERE id = ?', (contractor_id,))
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM contractors WHERE id = %s', (contractor_id,))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({'success': True, 'message': 'Contractor deleted successfully'})
@@ -1379,12 +1625,18 @@ def add_site_manager():
     
     conn = get_db_connection()
     try:
-        existing = conn.execute('SELECT 1 FROM site_managers WHERE name = ?', (data['name'],)).fetchone()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('SELECT 1 FROM site_managers WHERE name = %s', (data['name'],))
+
+        existing = cursor.fetchone()
         if existing:
             return jsonify({'success': False, 'message': 'Site manager name must be unique'}), 409
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             INSERT INTO site_managers (name, designation, project_code) 
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
         ''', (data['name'], data['designation'], data.get('project_code')))
         conn.commit()
         return jsonify({'success': True, 'message': 'Site manager added successfully'})
@@ -1401,19 +1653,26 @@ def update_site_manager(manager_id):
     
     conn = get_db_connection()
     try:
-        existing = conn.execute('SELECT 1 FROM site_managers WHERE name = ? AND id <> ?', (data['name'], manager_id)).fetchone()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('SELECT 1 FROM site_managers WHERE name = %s AND id <> %s', (data['name'], manager_id))
+
+        existing = cursor.fetchone()
         if existing:
             return jsonify({'success': False, 'message': 'Site manager name must be unique'}), 409
-        conn.execute('''
+        cursor = conn.cursor()
+
+        cursor.execute('''
             UPDATE site_managers 
-            SET name=?, designation=?, project_code=? 
-            WHERE id=?
+            SET name=%s, designation=%s, project_code=%s 
+            WHERE id=%s
         ''', (data['name'], data['designation'], data.get('project_code'), manager_id))
         conn.commit()
         return jsonify({'success': True, 'message': 'Site manager updated successfully'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
     finally:
+        cursor.close()
         conn.close()
 
 @app.route('/admin/site-managers/delete/<int:manager_id>', methods=['DELETE'])
@@ -1421,7 +1680,9 @@ def update_site_manager(manager_id):
 def delete_site_manager(manager_id):
     """Delete site manager"""
     conn = get_db_connection()
-    conn.execute('DELETE FROM site_managers WHERE id = ?', (manager_id,))
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM site_managers WHERE id = %s', (manager_id,))
     conn.commit()
     conn.close()
     
@@ -1440,18 +1701,22 @@ def check_report_exists():
     conn = get_db_connection()
     
     # Check submitted reports table
-    existing_report = conn.execute('''
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
         SELECT report_number, submitted_at FROM submitted_reports 
-        WHERE project_code = ? AND report_date = ?
-    ''', (project_code, report_date)).fetchone()
+        WHERE project_code = %s AND report_date = %s
+    ''', (project_code, report_date))
+    existing_report = cursor.fetchone()
     
     # Also check daily_progress_reports table for activity-level data
-    existing_progress = conn.execute('''
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
         SELECT activity_description, planned_today, achieved_today, 
                planned_cumulative, achieved_cumulative
         FROM daily_progress_reports 
-        WHERE project_code = ? AND report_date = ?
-    ''', (project_code, report_date)).fetchall()
+        WHERE project_code = %s AND report_date = %s
+    ''', (project_code, report_date))
+    existing_progress = cursor.fetchall()
     
     conn.close()
     
@@ -1490,14 +1755,17 @@ def submit_report():
         conn = get_db_connection()
         
         # Check if report already exists
-        existing_report = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT id FROM submitted_reports 
-            WHERE project_code = ? AND report_date = ?
-        ''', (data['projectCode'], data['reportDate'])).fetchone()
+            WHERE project_code = %s AND report_date = %s
+        ''', (data['projectCode'], data['reportDate']))
+        existing_report = cursor.fetchone()
         
         # Build full payload for storage
         # 1) Pull activity-level data saved via daily_progress_reports (authoritative for activities)
-        activities_rows = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT dpr.activity_description,
                    dpr.planned_today,
                    dpr.achieved_today,
@@ -1511,9 +1779,10 @@ def submit_report():
               ON pa.project_code = dpr.project_code AND pa.activity_description = dpr.activity_description
             LEFT JOIN project_sections ps
               ON ps.id = pa.section_id
-            WHERE dpr.project_code = ? AND dpr.report_date = ?
+            WHERE dpr.project_code = %s AND dpr.report_date = %s
             ORDER BY ps.section_name, dpr.activity_description
-        ''', (data['projectCode'], data['reportDate'])).fetchall()
+        ''', (data['projectCode'], data['reportDate']))
+        activities_rows = cursor.fetchall()
         activities_list = []
         for row in activities_rows:
             activities_list.append({
@@ -1587,11 +1856,13 @@ def submit_report():
 
         if existing_report:
             # Update existing report in-place with rebuilt payload
-            conn.execute('''
+            cursor = conn.cursor()
+
+            cursor.execute('''
                 UPDATE submitted_reports
-                SET report_number = ?, project_code = ?, report_date = ?, project_name = ?,
+                SET report_number = %s, project_code = %s, report_date = %s, project_name = %s,
                     prepared_by = ?, checked_by = ?, approved_by = ?, report_data = ?
-                WHERE id = ?
+                WHERE id = %s
             ''', (
                 data['reportNumber'],
                 data['projectCode'],
@@ -1605,10 +1876,12 @@ def submit_report():
             ))
         else:
             # Insert the report
-            conn.execute('''
+            cursor = conn.cursor()
+
+            cursor.execute('''
                 INSERT INTO submitted_reports 
                 (report_number, project_code, report_date, project_name, prepared_by, checked_by, approved_by, report_data)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 data['reportNumber'],
                 data['projectCode'],
@@ -1621,6 +1894,7 @@ def submit_report():
             ))
         
         conn.commit()
+        cursor.close()
         conn.close()
 
         # Add notification for this submission (visible for 48 hours)
@@ -1642,7 +1916,7 @@ def submit_report():
             'report_number': data['reportNumber']
         })
         
-    except sqlite3.IntegrityError as e:
+    except mysql.connector.IntegrityError as e:
         if 'UNIQUE constraint failed: submitted_reports.report_number' in str(e):
             return jsonify({'error': 'This report number already exists'}), 409
         elif 'UNIQUE constraint failed: submitted_reports.project_code, submitted_reports.report_date' in str(e):
@@ -1673,18 +1947,20 @@ def get_previous_day_progress():
     
     try:
         conn = get_db_connection()
-        previous_reports = conn.execute('''
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
             SELECT dpr.activity_description, dpr.planned_cumulative, dpr.achieved_cumulative
             FROM daily_progress_reports dpr
-            WHERE dpr.project_code = ? 
+            WHERE dpr.project_code = %s 
               AND dpr.report_date = (
                 SELECT MAX(report_date)
                 FROM daily_progress_reports dpr2
                 WHERE dpr2.project_code = dpr.project_code
                   AND dpr2.activity_description = dpr.activity_description
-                  AND dpr2.report_date < ?
+                  AND dpr2.report_date < %s
               )
-        ''', (project_code, current_date)).fetchall()
+        ''', (project_code, current_date))
+        previous_reports = cursor.fetchall()
         conn.close()
         
         # Convert to dictionary for easy lookup
@@ -1713,10 +1989,12 @@ def save_daily_progress():
         conn = get_db_connection()
         
         for activity in data['activities']:
-            conn.execute('''
-                INSERT OR REPLACE INTO daily_progress_reports 
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                REPLACE INTO daily_progress_reports 
                 (project_code, report_date, activity_description, planned_today, achieved_today, planned_cumulative, achieved_cumulative)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (
                 data['project_code'],
                 data['report_date'],
