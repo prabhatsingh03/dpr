@@ -6,13 +6,13 @@ Usage: python delete_project_reports.py [project_code]
 Example: python delete_project_reports.py I-2501F001
 """
 
-import sqlite3
+from config.database import get_db_connection
 import sys
 
 def delete_project_reports(project_code):
     """Delete all submitted reports and daily progress reports for a given project."""
     
-    conn = sqlite3.connect('dpr_database.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
@@ -20,7 +20,7 @@ def delete_project_reports(project_code):
         cursor.execute('''
             SELECT id, report_number, report_date, project_name 
             FROM submitted_reports 
-            WHERE project_code = ?
+            WHERE project_code = %s
             ORDER BY report_date
         ''', (project_code,))
         
@@ -29,7 +29,7 @@ def delete_project_reports(project_code):
         cursor.execute('''
             SELECT COUNT(*) 
             FROM daily_progress_reports 
-            WHERE project_code = ?
+            WHERE project_code = %s
         ''', (project_code,))
         
         daily_report_count = cursor.fetchone()[0]
@@ -67,14 +67,14 @@ def delete_project_reports(project_code):
         # Delete from submitted_reports table
         cursor.execute('''
             DELETE FROM submitted_reports 
-            WHERE project_code = ?
+            WHERE project_code = %s
         ''', (project_code,))
         deleted_submitted = cursor.rowcount
         
         # Delete from daily_progress_reports table
         cursor.execute('''
             DELETE FROM daily_progress_reports 
-            WHERE project_code = ?
+            WHERE project_code = %s
         ''', (project_code,))
         deleted_daily = cursor.rowcount
         
@@ -96,7 +96,7 @@ def delete_project_reports(project_code):
 def list_all_projects():
     """List all projects and their report counts."""
     
-    conn = sqlite3.connect('dpr_database.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     cursor.execute('''
@@ -135,9 +135,9 @@ if __name__ == '__main__':
     project_code = sys.argv[1]
     
     # Verify project exists
-    conn = sqlite3.connect('dpr_database.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT code, name FROM projects WHERE code = ?", (project_code,))
+    cursor.execute("SELECT code, name FROM projects WHERE code = %s", (project_code,))
     project = cursor.fetchone()
     conn.close()
     
