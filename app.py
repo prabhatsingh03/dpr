@@ -1775,10 +1775,12 @@ def submit_report():
                    pa.unit AS activity_unit,
                    pa.total_qty_planned AS total_qty_planned
             FROM daily_progress_reports dpr
-            LEFT JOIN project_activities pa
-              ON pa.project_code = dpr.project_code AND pa.activity_description = dpr.activity_description
             LEFT JOIN project_sections ps
-              ON ps.id = pa.section_id
+              ON ps.id = dpr.section_id
+            LEFT JOIN project_activities pa
+              ON pa.project_code = dpr.project_code 
+              AND pa.activity_description = dpr.activity_description
+              AND pa.section_id = dpr.section_id
             WHERE dpr.project_code = %s AND dpr.report_date = %s
             ORDER BY ps.section_name, dpr.activity_description
         ''', (data['projectCode'], data['reportDate']))
@@ -1949,14 +1951,16 @@ def get_previous_day_progress():
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute('''
-            SELECT dpr.activity_description, dpr.planned_cumulative, dpr.achieved_cumulative
+            SELECT dpr.activity_description, dpr.section_id, dpr.planned_cumulative, dpr.achieved_cumulative, ps.section_name
             FROM daily_progress_reports dpr
+            LEFT JOIN project_sections ps ON dpr.section_id = ps.id
             WHERE dpr.project_code = %s 
               AND dpr.report_date = (
                 SELECT MAX(report_date)
                 FROM daily_progress_reports dpr2
                 WHERE dpr2.project_code = dpr.project_code
                   AND dpr2.activity_description = dpr.activity_description
+                  AND dpr2.section_id = dpr.section_id
                   AND dpr2.report_date < %s
               )
         ''', (project_code, current_date))
@@ -1966,7 +1970,8 @@ def get_previous_day_progress():
         # Convert to dictionary for easy lookup
         previous_data = {}
         for report in previous_reports:
-            previous_data[report['activity_description']] = {
+            key = f"{report['section_name']}|{report['activity_description']}" if report['section_name'] else report['activity_description']
+            previous_data[key] = {
                 'planned_cumulative': report['planned_cumulative'],
                 'achieved_cumulative': report['achieved_cumulative']
             }
@@ -1991,13 +1996,23 @@ def save_daily_progress():
         for activity in data['activities']:
             cursor = conn.cursor()
 
+            # Lookup section_id
+            section_id = 0
+            section_name = activity.get('sectionName')
+            if section_name:
+                cursor.execute("SELECT id FROM project_sections WHERE project_code = %s AND section_name = %s", (data['project_code'], section_name))
+                section_res = cursor.fetchone()
+                if section_res:
+                    section_id = section_res[0]
+
             cursor.execute('''
                 REPLACE INTO daily_progress_reports 
-                (project_code, report_date, activity_description, planned_today, achieved_today, planned_cumulative, achieved_cumulative)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (project_code, report_date, section_id, activity_description, planned_today, achieved_today, planned_cumulative, achieved_cumulative)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 data['project_code'],
                 data['report_date'],
+                section_id,
                 activity['description'],
                 activity['planned_today'],
                 activity['achieved_today'],
