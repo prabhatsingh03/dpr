@@ -1739,7 +1739,9 @@
                     });
 
                     // Get previous day's cumulative values
-                    const previousData = previousDayData[activityDescription] || { planned_cumulative: 0, achieved_cumulative: 0 };
+                    const sectionName = row.closest('tbody')?.dataset?.categoryName || '';
+                    const lookupKey = sectionName ? `${sectionName}|${activityDescription}` : activityDescription;
+                    const previousData = previousDayData[lookupKey] || { planned_cumulative: 0, achieved_cumulative: 0 };
                     console.log('Previous day data for', activityDescription, ':', previousData);
 
                     // Calculate new cumulative values
@@ -2873,6 +2875,7 @@
                         if (activitySelect && activitySelect.value) {
                             activities.push({
                                 description: activitySelect.value,
+                                sectionName: row.closest('tbody')?.dataset?.categoryName || '',
                                 planned_today: parseFloat(plannedTodayInput.value) || 0,
                                 achieved_today: parseFloat(achievedTodayInput.value) || 0,
                                 planned_cumulative: parseFloat(plannedCumulativeInput.value) || 0,
