@@ -76,6 +76,25 @@ def migrate():
     # Disable FK checks
     cursor = mysql_conn.cursor()
     cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+    
+    # helper to clean tables
+    tables_to_truncate = [
+        'submitted_reports', 'daily_progress_reports', 
+        'project_activities', 'project_sections', 
+        'site_managers', 'contractors', 'report_preparers', 
+        'admin_users', 'app_settings', 'equipment_descriptions', 
+        'manpower_designations', 'departments', 'projects'
+    ]
+    
+    print("Clearing existing MySQL data to ensure clean migration...")
+    for table in tables_to_truncate:
+        try:
+            cursor.execute(f"TRUNCATE TABLE {table}")
+        except mysql.connector.Error as err:
+            print(f"Warning: Could not truncate {table}: {err}")
+            
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 1") # Re-enable for safety after truncate? No, keep disabled for insert.
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
     mysql_conn.commit()
     cursor.close()
 
@@ -128,14 +147,6 @@ def migrate():
         
         # Tables referenced by ID: project_sections (referenced by project_activities.section_id)
         # So for project_sections, we MUST include 'id'.
-        
-        print("Re-migrating project_sections with ID preservation...")
-        # Truncate to avoid dupes/conflicts since we just inserted without ID
-        cursor = mysql_conn.cursor()
-        cursor.execute("TRUNCATE TABLE project_activities") 
-        cursor.execute("TRUNCATE TABLE project_sections")
-        mysql_conn.commit()
-        cursor.close()
         
         migrate_table(sqlite_conn, mysql_conn, 'project_sections', 
                       ['id', 'project_code', 'section_id', 'section_name', 'area', 'unit', 'total_qty_planned', 'order_index'])
