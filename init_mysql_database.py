@@ -228,7 +228,27 @@ def init_database():
         # Re-enable foreign key checks
         cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
         
+        print("MySQL database schema initialized successfully!")
+            
+    except mysql.connector.Error as err:
+        print(f"Error initializing database: {err}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def seed_database():
+    """Insert initial data into the MySQL database"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
         # Insert initial data
+        print("Seeding database with default data...")
+
         
         # Projects data
         projects_data = [
@@ -415,10 +435,10 @@ def init_database():
         ''', ('admin@simonindia.ai', password_hash, 'admin@simonindia.ai'))
         
         conn.commit()
-        print("MySQL database initialized successfully with schema and default data!")
+        print("Database seeded successfully with default data!")
         
     except mysql.connector.Error as err:
-        print(f"Error initializing database: {err}")
+        print(f"Error seeding database: {err}")
     finally:
         if cursor:
             cursor.close()
@@ -427,3 +447,5 @@ def init_database():
 
 if __name__ == '__main__':
     init_database()
+    # Uncomment the following line if you want to seed default data
+    # seed_database()
