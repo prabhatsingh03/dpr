@@ -12,6 +12,10 @@
                 display: none !important;
             }
 
+            nav {
+                display: none !important;
+            }
+
             body {
                 background: white;
             }
@@ -29,9 +33,11 @@
 
         tr,
         td,
-        th {
-            page-break-inside: avoid;
-            break-inside: avoid;
+        th,
+        h2,
+        h3 {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }
 
         .page-break {
@@ -105,32 +111,37 @@
             if (!root) return;
             // Clone root to control width and ignore elements
             const clone = root.cloneNode(true);
+            clone.classList.remove('p-6');       // remove Tailwind padding from reports-root
+            clone.style.padding = '0';           // ensure no bottom padding
+            clone.style.paddingBottom = '0';
             // Size clone to actual content width to avoid cutting/shrinking
             const contentWidth = Math.max(794, root.scrollWidth, root.offsetWidth);
             clone.style.width = contentWidth + 'px';
             clone.style.maxWidth = contentWidth + 'px';
-            clone.style.margin = '0 auto';
+            clone.style.margin = '0'; // Fixed: '0 auto' caused right shift
             clone.style.overflow = 'visible';
             // Slightly compact fonts/paddings for PDF to fit more content per page
-            clone.classList.add('pdf-compact');
+            // clone.classList.add('pdf-compact'); // Removed to allow multi-page spanning as per user request
             // Ensure elements marked with data-html2pdf-ignore are removed in clone
             clone.querySelectorAll('[data-html2pdf-ignore]')?.forEach(el => el.remove());
+
+            // Remove shadows from the PDF clone to avoid "shade" artifacts
+            clone.classList.remove('shadow-lg', 'shadow');
+            clone.querySelectorAll('.shadow-lg, .shadow').forEach(el => el.classList.remove('shadow-lg', 'shadow'));
             document.body.appendChild(clone);
 
             const projSel = document.getElementById('project');
             const dateSel = document.getElementById('report_date');
             const proj = projSel?.value || 'All';
-            const date = dateSel?.value || new Date().toISOString().slice(0, 10);
-            // Fit to A4 width: choose orientation and scale to avoid clipping
+            // Format date as DD-MM-YYYY for filename
+            const rawDate = dateSel?.value || new Date().toISOString().slice(0, 10);
+            const dateParts = rawDate.split('-');
+            const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+
             const A4W_PX_PORTRAIT = 794;  // ~ 210mm at 96dpi
             const A4W_PX_LANDSCAPE = 1123; // ~ 297mm at 96dpi
             let orientation = 'portrait';
             let targetWidth = A4W_PX_PORTRAIT;
-            if (contentWidth > A4W_PX_LANDSCAPE) {
-                orientation = 'landscape';
-                targetWidth = A4W_PX_LANDSCAPE;
-            }
-            // Compute scale so that content fits target width
             const extraDownscale = 0.92; // shrink slightly more to ensure no clipping
             const scaleToFit = Math.min((targetWidth / contentWidth) * extraDownscale, 1);
             clone.style.transformOrigin = 'top left';
@@ -138,12 +149,20 @@
 
             const opt = {
                 margin: [10, 10, 10, 10],
-                filename: `DPR_${proj}_${date}.pdf`,
+                filename: `DPR_${proj}_${formattedDate}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: contentWidth },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: contentWidth },
                 jsPDF: { unit: 'mm', format: 'a4', orientation },
-                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'td', 'th', '.avoid-break'] }
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'td', 'th', 'h2', 'h3', '.avoid-break'] }
             };
+
+            // Remove bottom margin from last element to prevent blank page
+            const lastEl = clone.lastElementChild;
+            if (lastEl) lastEl.style.marginBottom = '0';
+            const lastReport = clone.querySelector(':scope > div:last-child');
+            if (lastReport) lastReport.style.marginBottom = '0';
+            clone.style.marginBottom = '0';
+
             await html2pdf().from(clone).set(opt).save();
             document.body.removeChild(clone);
         }
@@ -161,7 +180,15 @@
                 // Title
                 aoa.push([`Report ${r.report_number}`]);
                 aoa.push([`${r.project_code} - ${r.project_name}`]);
-                aoa.push([`Date: ${r.report_date}`]);
+                function fmtDate(d) {
+                    if (!d) return '';
+                    // Assuming d is YYYY-MM-DD
+                    const parts = d.split('-');
+                    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    return d;
+                }
+                const dateVal = fmtDate(r.report_date);
+                aoa.push([`Date: ${dateVal}`]);
                 aoa.push([]);
 
                 // Project Details (4-column layout: label, value, label, value)
@@ -228,7 +255,7 @@
                 const ci = (d.criticalIssuesDetails || []);
                 if (ci.length > 0) {
                     aoa.push(['Issue', 'Raised (Date)', 'Work Affected']);
-                    ci.forEach(it => aoa.push([it.issue || '', it.dateRaised || '', it.affected || '']));
+                    ci.forEach(it => aoa.push([it.issue || '', fmtDate(it.dateRaised) || '', it.affected || '']));
                 } else {
                     aoa.push([d.criticalIssues || 'Not filled']);
                 }
@@ -267,8 +294,10 @@
             const projSel = document.getElementById('project');
             const dateSel = document.getElementById('report_date');
             const proj = projSel?.value || 'All';
-            const date = dateSel?.value || new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, `DPR_View_${proj}_${date}.xlsx`);
+            const rawDate = dateSel?.value || new Date().toISOString().slice(0, 10);
+            const dateParts = rawDate.split('-');
+            const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+            XLSX.writeFile(wb, `DPR_View_${proj}_${formattedDate}.xlsx`);
         }
         function formatIST(ts) {
             try {
@@ -348,7 +377,8 @@
                             r.project_code }}</span>
                         <span class="text-lg font-semibold text-gray-700">{{ r.project_name }}</span>
                     </div>
-                    <p class="text-gray-600 mb-4"><span class="font-medium">Date:</span> {{ r.report_date }}</p>
+                    <p class="text-gray-600 mb-4"><span class="font-medium">Date:</span> {{
+                        r.report_date.split('-')|reverse|join('-') if r.report_date else '' }}</p>
                     <div class="mt-4">
                         <h3 class="text-lg font-semibold text-gray-800 mb-3">Project Details</h3>
                         <div class="overflow-x-auto">
@@ -607,8 +637,8 @@
                         <table class="min-w-full text-sm border">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="text-left p-2 border">Issue</th>
-                                    <th class="text-left p-2 border">Raised (Date)</th>
+                                    <th class="text-left p-2 border" style="width: 50%;">Issue</th>
+                                    <th class="text-left p-2 border" style="width: 120px;">Raised (Date)</th>
                                     <th class="text-left p-2 border">Work Affected</th>
                                 </tr>
                             </thead>
@@ -616,7 +646,8 @@
                                 {% for item in r.data.criticalIssuesDetails %}
                                 <tr>
                                     <td class="p-2 border">{{ item.issue }}</td>
-                                    <td class="p-2 border">{{ item.dateRaised }}</td>
+                                    <td class="p-2 border">{{ item.dateRaised.split('-')|reverse|join('-') if
+                                        item.dateRaised else '' }}</td>
                                     <td class="p-2 border">{{ item.affected }}</td>
                                 </tr>
                                 {% endfor %}
