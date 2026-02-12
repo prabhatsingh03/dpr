@@ -1744,18 +1744,22 @@
                     const previousData = previousDayData[lookupKey] || { planned_cumulative: 0, achieved_cumulative: 0 };
                     console.log('Previous day data for', activityDescription, ':', previousData);
 
-                    // Calculate new cumulative values
-                    const plannedCumulative = previousData.planned_cumulative + plannedToday;
-                    const achievedCumulative = previousData.achieved_cumulative + achievedToday;
+                    // Ensure previous cumulative values are treated as numbers (not strings)
+                    const prevPlannedCum = parseFloat(previousData.planned_cumulative) || 0;
+                    const prevAchievedCum = parseFloat(previousData.achieved_cumulative) || 0;
+
+                    // Calculate new cumulative values using numeric addition
+                    const plannedCumulative = prevPlannedCum + plannedToday;
+                    const achievedCumulative = prevAchievedCum + achievedToday;
 
                     console.log('Calculated cumulative values:', {
                         plannedCumulative,
                         achievedCumulative
                     });
 
-                    // Update cumulative fields
-                    if (plannedCumulativeInput) plannedCumulativeInput.value = plannedCumulative;
-                    if (cumulativeAchievedInput) cumulativeAchievedInput.value = achievedCumulative;
+                    // Update cumulative fields (formatted to 2 decimal places)
+                    if (plannedCumulativeInput) plannedCumulativeInput.value = plannedCumulative.toFixed(2);
+                    if (cumulativeAchievedInput) cumulativeAchievedInput.value = achievedCumulative.toFixed(2);
 
                     // Calculate completion percentage
                     if (totalQty > 0) {
