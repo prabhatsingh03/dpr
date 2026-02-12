@@ -4,11 +4,25 @@ import os
 import asyncio
 from datetime import datetime, timedelta
 import json
+from decimal import Decimal
 from config.database import get_db_connection
 import mysql.connector
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
+
+
+def _convert_decimals(obj):
+    """
+    Recursively convert Decimal instances in dicts/lists to floats so they can be JSON-serialized.
+    """
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, dict):
+        return {k: _convert_decimals(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [ _convert_decimals(v) for v in obj ]
+    return obj
 
 
 # Notifications storage (JSON file) and helpers
@@ -1856,6 +1870,9 @@ def submit_report():
             'criticalIssuesDetails': critical_issues_details
         }
 
+        # Ensure payload is JSON-serializable (convert Decimal -> float)
+        full_payload_serializable = _convert_decimals(full_payload)
+
         if existing_report:
             # Update existing report in-place with rebuilt payload
             cursor = conn.cursor()
@@ -1870,10 +1887,10 @@ def submit_report():
                 data['projectCode'],
                 data['reportDate'],
                 data['projectName'],
-                full_payload.get('preparedBy', ''),
-                full_payload.get('checkedBy', ''),
-                full_payload.get('approvedBy', ''),
-                json.dumps(full_payload),
+                full_payload_serializable.get('preparedBy', ''),
+                full_payload_serializable.get('checkedBy', ''),
+                full_payload_serializable.get('approvedBy', ''),
+                json.dumps(full_payload_serializable),
                 existing_report['id']
             ))
         else:
@@ -1889,10 +1906,10 @@ def submit_report():
                 data['projectCode'],
                 data['reportDate'],
                 data['projectName'],
-                full_payload.get('preparedBy', ''),
-                full_payload.get('checkedBy', ''),
-                full_payload.get('approvedBy', ''),
-                json.dumps(full_payload)
+                full_payload_serializable.get('preparedBy', ''),
+                full_payload_serializable.get('checkedBy', ''),
+                full_payload_serializable.get('approvedBy', ''),
+                json.dumps(full_payload_serializable)
             ))
         
         conn.commit()
